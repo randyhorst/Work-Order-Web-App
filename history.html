@@ -51,7 +51,7 @@
 <script type="module">
     import { initFirebase } from './js/firebase-init.js';
     import { requireAuth } from './js/auth.js';
-    import { searchWorkOrders, deleteWorkOrder } from './js/db.js';
+    import { searchWorkOrders } from './js/db.js';
     import { renderNav } from './js/nav.js';
 
     initFirebase();
@@ -120,26 +120,14 @@
                                 ${completed ? `<span>Completed: ${completed}</span>` : ''}
                             </div>
                         </div>
-                        <div class="flex flex-col gap-2 flex-shrink-0 items-end">
-                            ${wo.pdfDriveLink ? `<a href="${wo.pdfDriveLink}" target="_blank" onclick="event.stopPropagation()"
-                                class="text-xs bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition">📄 PDF</a>` : ''}
-                            <button onclick="event.stopPropagation(); deleteWO('${wo.id}', '${(wo.displayWorkOrderNumber||'').replace(/'/g,'')}')"
-                                class="text-xs text-red-500 hover:text-red-400 border border-red-800 hover:border-red-500 px-3 py-1.5 rounded-lg transition">🗑️ Delete</button>
-                        </div>
+                        ${wo.pdfDriveLink ? `<a href="${wo.pdfDriveLink}" target="_blank" onclick="event.stopPropagation()"
+                            class="flex-shrink-0 text-xs bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition">📄 PDF</a>` : ''}
                     </div>
                 </div>`;
             }).join('');
         } catch(e) {
             container.innerHTML = `<div class="text-center text-red-400 py-8">Error: ${e.message}</div>`;
         }
-    };
-
-    window.deleteWO = async function(id, label) {
-        if (!confirm(`Permanently delete work order ${label}? This cannot be undone.`)) return;
-        try {
-            await deleteWorkOrder(id);
-            doSearch(); // refresh list
-        } catch(e) { alert('Error deleting: ' + e.message); }
     };
 
     window.clearFilters = function() {
