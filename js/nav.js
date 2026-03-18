@@ -22,6 +22,7 @@ export async function renderNav(activePage = '') {
         { href: 'history.html', label: 'History', icon: '🔍', always: true },
         { href: 'dashboard.html', label: 'Equipment', icon: '🔧', always: true },
         { href: 'admin.html', label: 'Admin', icon: '⚙️', always: false, adminOnly: true },
+        { href: 'settings.html', label: 'Settings', icon: '🛠️', always: false, adminOnly: true },
     ];
 
     const links = pages

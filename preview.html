@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>App Preview - Shop Work Orders</title>
+    <script>
+        // Preview is a local development tool only — block on live/public domains
+        const host = window.location.hostname;
+        if (host !== 'localhost' && host !== '127.0.0.1' && host !== '') {
+            window.location.replace('login.html');
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">

@@ -28,10 +28,20 @@
             <h2 class="text-lg font-bold text-white">Users</h2>
             <button onclick="generateInvite()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">+ Generate Invite Code</button>
         </div>
-        <div id="invite-result" class="hidden bg-gray-800 border border-indigo-500 rounded-xl p-4 text-center">
-            <p class="text-sm text-gray-400 mb-2">Share this code with your worker (expires in 7 days):</p>
-            <p id="invite-code-display" class="text-3xl font-mono font-bold text-indigo-300 tracking-widest"></p>
-            <p class="text-xs text-gray-500 mt-2">Worker goes to <strong>register.html</strong> and enters this code to create their account.</p>
+        <div class="flex items-center gap-2">
+            <select id="invite-role" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                <option value="worker">Worker</option>
+                <option value="viewer">Viewer (view-only)</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+        <div id="invite-result" class="hidden bg-gray-800 border border-indigo-500 rounded-xl p-4 space-y-3">
+            <p class="text-sm text-gray-400">Send this link to your worker — it pre-fills the invite code automatically. Expires in 7 days.</p>
+            <div class="flex items-center gap-2 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2">
+                <a id="invite-link-display" href="#" target="_blank" class="text-indigo-300 text-xs font-mono flex-1 truncate"></a>
+                <button onclick="copyInviteLink()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg transition flex-shrink-0">📋 Copy Link</button>
+            </div>
+            <p class="text-xs text-gray-500">Or share just the code: <span id="invite-code-display" class="font-mono font-bold text-indigo-300 tracking-widest"></span></p>
         </div>
         <div id="users-list" class="space-y-2">
             <div class="text-gray-500 text-sm">Loading users...</div>
@@ -175,10 +185,26 @@
 
     window.generateInvite = async function() {
         try {
-            const code = await createInviteCode('worker', profile.uid);
+            const role = document.getElementById('invite-role').value;
+            const code = await createInviteCode(role, profile.uid);
+            const baseUrl = window.location.href.replace('admin.html', '');
+            const link = `${baseUrl}register.html?invite=${code}`;
             document.getElementById('invite-code-display').textContent = code;
+            const linkEl = document.getElementById('invite-link-display');
+            linkEl.textContent = link;
+            linkEl.href = link;
             document.getElementById('invite-result').classList.remove('hidden');
         } catch(e) { alert('Error: ' + e.message); }
+    };
+
+    window.copyInviteLink = function() {
+        const link = document.getElementById('invite-link-display').textContent;
+        navigator.clipboard.writeText(link).then(() => {
+            const btn = document.querySelector('[onclick="copyInviteLink()"]');
+            const orig = btn.textContent;
+            btn.textContent = '✓ Copied!';
+            setTimeout(() => btn.textContent = orig, 2000);
+        }).catch(() => alert('Copy failed — please copy the link manually.'));
     };
 
     // ── EQUIPMENT ──────────────────────────────────────────────
