@@ -42,7 +42,6 @@ const ALL_PAGES = [
     { href: 'history.html', label: 'History', icon: '🔍' },
     { href: 'dashboard.html', label: 'Equipment', icon: '🔧' },
     { href: 'admin.html', label: 'Admin', icon: '⚙️', adminOnly: true },
-    { href: 'settings.html', label: 'Settings', icon: '🛠️', adminOnly: true },
 ];
 
 function buildLinks(pages, activePage) {

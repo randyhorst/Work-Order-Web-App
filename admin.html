@@ -21,6 +21,7 @@
         <button onclick="showTab('checklists')" data-tab="checklists" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">✅ Checklists</button>
         <button onclick="showTab('export')" data-tab="export" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">📤 Export</button>
         <button onclick="showTab('batch')" data-tab="batch" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">📥 Batch Import</button>
+        <button onclick="showTab('settings')" data-tab="settings" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">🛠️ Settings</button>
     </div>
 
     <!-- USERS TAB -->
@@ -31,8 +32,8 @@
         </div>
         <div class="flex items-center gap-2">
             <select id="invite-role" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
-                <option value="worker">Worker</option>
                 <option value="viewer">Viewer (view-only)</option>
+                <option value="worker">Worker</option>
                 <option value="admin">Admin</option>
             </select>
         </div>
@@ -199,8 +200,133 @@
             <div class="flex flex-wrap gap-3">
                 <button onclick="previewExport()" class="bg-gray-600 hover:bg-gray-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Preview Results</button>
                 <button onclick="downloadCSV()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">📥 Download CSV</button>
-                <a href="settings.html" class="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-5 py-2.5 rounded-lg text-sm font-semibold transition">⚙️ Configure Drive Export</a>
+                <button onclick="showTab('settings')" class="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-5 py-2.5 rounded-lg text-sm font-semibold transition">⚙️ Configure Drive Export</button>
             </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div id="tab-settings" class="tab-content hidden space-y-6">
+        <div>
+            <h2 class="text-lg font-bold text-white">App Settings</h2>
+            <p class="text-gray-400 text-sm mt-1">Configure Firebase, company branding, and Google Drive integration. Settings are stored locally in this browser.</p>
+        </div>
+
+        <!-- Firebase Configuration -->
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-md font-bold text-white">🔥 Firebase Configuration</h2>
+                <span id="firebase-status" class="text-xs px-3 py-1 rounded-full bg-gray-700 text-gray-400">Not configured</span>
+            </div>
+            <p class="text-sm text-gray-400">
+                Create a free project at <a href="https://console.firebase.google.com" target="_blank" class="text-indigo-400 underline">console.firebase.google.com</a>,
+                enable <strong>Authentication (Email/Password)</strong>, <strong>Firestore Database</strong>, then register a Web App to get these values.
+            </p>
+            <div class="grid grid-cols-1 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">API Key</label>
+                    <input type="text" id="cfg-apiKey" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="AIzaSy...">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Auth Domain</label>
+                        <input type="text" id="cfg-authDomain" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="project.firebaseapp.com">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Project ID</label>
+                        <input type="text" id="cfg-projectId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="my-project-id">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Storage Bucket</label>
+                        <input type="text" id="cfg-storageBucket" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="project.appspot.com">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Messaging Sender ID</label>
+                        <input type="text" id="cfg-messagingSenderId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="123456789">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">App ID</label>
+                    <input type="text" id="cfg-appId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="1:123456789:web:abcdef">
+                </div>
+            </div>
+            <button onclick="saveFirebaseConfig()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Save Firebase Config</button>
+            <p id="firebase-save-status" class="text-sm h-5"></p>
+        </div>
+
+        <!-- Company Settings -->
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+            <h2 class="text-md font-bold text-white">🏢 Company Settings</h2>
+            <p class="text-sm text-gray-400">These settings are used on the login page and on printed PDF reports.</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Company Name</label>
+                    <input type="text" id="cfg-companyName" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., Pineview Vegetation Management">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Company ID (Firestore collection key)</label>
+                    <input type="text" id="cfg-companyId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., pineview-2026 (no spaces, lowercase)">
+                    <p class="text-xs text-gray-500 mt-1">This is how your company's data is stored in Firestore. Use a unique short ID.</p>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Company Logo</label>
+                    <div class="flex items-center gap-3">
+                        <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+                            📷 Upload Logo
+                            <input type="file" id="logo-file-upload" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" class="hidden">
+                        </label>
+                        <span id="logo-file-name" class="text-xs text-gray-400">No file chosen</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">PNG, JPEG, or SVG. Will be embedded as base64 in printed reports.</p>
+                </div>
+                <div id="logo-preview" class="hidden">
+                    <p class="text-xs text-gray-400 mb-2">Logo preview:</p>
+                    <div class="flex items-center gap-3">
+                        <img id="logo-preview-img" src="" alt="Logo" class="max-h-16 max-w-48 rounded-lg border border-gray-600 bg-white p-1">
+                        <button onclick="removeLogo()" class="text-red-400 hover:text-red-300 text-xs border border-red-800 px-3 py-1.5 rounded-lg transition">Remove</button>
+                    </div>
+                </div>
+            </div>
+            <button onclick="saveCompanySettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Save Company Settings</button>
+            <p id="company-save-status" class="text-sm h-5"></p>
+        </div>
+
+        <!-- Google Drive Settings -->
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-md font-bold text-white">📁 Google Drive — Photo &amp; Document Storage</h2>
+                <span id="drive-status" class="text-xs px-3 py-1 rounded-full bg-gray-700 text-gray-400">Not configured</span>
+            </div>
+            <p class="text-sm text-gray-400">
+                Photos and documents attached to work orders are uploaded directly to your Google Drive folder.
+            </p>
+            <div class="bg-gray-900 border border-gray-600 rounded-lg p-4 text-xs text-gray-300 space-y-1">
+                <p class="font-semibold text-white mb-2">One-time setup (~10 min):</p>
+                <p>1. Go to <a href="https://console.cloud.google.com" target="_blank" class="text-indigo-400 underline">console.cloud.google.com</a> → New Project → name it anything</p>
+                <p>2. <strong>APIs &amp; Services → Library</strong> → search <em>Google Drive API</em> → Enable</p>
+                <p>3. <strong>APIs &amp; Services → OAuth consent screen</strong> → External → fill App name + your email → Save</p>
+                <p>4. <strong>APIs &amp; Services → Credentials → Create Credentials → OAuth Client ID</strong> → Web application → add your site URL to "Authorized JavaScript origins" → Create → copy the Client ID</p>
+                <p>5. In <strong>Google Drive</strong>, create a folder for work order files → open it → copy the ID from the URL: <code class="bg-gray-700 px-1 rounded">drive.google.com/drive/folders/<strong class="text-yellow-300">[FOLDER ID HERE]</strong></code></p>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">OAuth Client ID</label>
+                    <input type="text" id="cfg-googleClientId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="123456789-abc.apps.googleusercontent.com">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Google Drive Folder ID</label>
+                    <input type="text" id="cfg-driveFolderId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="1aBcDeFgHiJkLmNoPqRsTuVwXyZ">
+                    <p class="text-xs text-gray-500 mt-1">All photos and PDFs will be uploaded into this folder.</p>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Google API Key <span class="text-gray-500">(optional — only needed if you use Google Picker)</span></label>
+                    <input type="text" id="cfg-googleApiKey" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="AIzaSy...">
+                </div>
+            </div>
+            <button onclick="saveDriveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Save Drive Settings</button>
+            <p id="drive-save-status" class="text-sm h-5"></p>
         </div>
     </div>
 </div>
@@ -232,6 +358,7 @@
         if (tab === 'users') loadUsers();
         if (tab === 'equipment') loadEquipment();
         if (tab === 'checklists') loadChecklistEditor();
+        if (tab === 'settings') loadSettingsTab();
     };
 
     // ── USERS ──────────────────────────────────────────────────
@@ -684,12 +811,145 @@
         a.click(); URL.revokeObjectURL(url);
     };
 
+    // ── SETTINGS ───────────────────────────────────────────────
+
+    const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
+    const APP_SETTINGS_KEY = 'shopAppSettings';
+
+    function loadSettingsTab() {
+        const savedCfg = JSON.parse(localStorage.getItem(APP_CONFIG_KEY) || '{}');
+        const savedSettings = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+
+        if (savedCfg.apiKey) {
+            document.getElementById('cfg-apiKey').value = savedCfg.apiKey || '';
+            document.getElementById('cfg-authDomain').value = savedCfg.authDomain || '';
+            document.getElementById('cfg-projectId').value = savedCfg.projectId || '';
+            document.getElementById('cfg-storageBucket').value = savedCfg.storageBucket || '';
+            document.getElementById('cfg-messagingSenderId').value = savedCfg.messagingSenderId || '';
+            document.getElementById('cfg-appId').value = savedCfg.appId || '';
+            document.getElementById('firebase-status').textContent = '✓ Configured';
+            document.getElementById('firebase-status').className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
+        }
+
+        document.getElementById('cfg-companyName').value = savedSettings.companyName || '';
+        document.getElementById('cfg-companyId').value = savedSettings.companyId || '';
+        document.getElementById('cfg-driveFolderId').value = savedSettings.driveFolderId || '';
+        document.getElementById('cfg-googleApiKey').value = savedSettings.googleApiKey || '';
+        document.getElementById('cfg-googleClientId').value = savedSettings.googleClientId || '';
+
+        if (savedSettings.logoUrl) {
+            document.getElementById('logo-preview-img').src = savedSettings.logoUrl;
+            document.getElementById('logo-preview').classList.remove('hidden');
+            document.getElementById('logo-file-name').textContent = 'Logo saved';
+        }
+
+        if (savedSettings.googleClientId && savedSettings.driveFolderId) {
+            document.getElementById('drive-status').textContent = '✓ Configured';
+            document.getElementById('drive-status').className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
+        }
+    }
+
+    // Logo file upload → base64 conversion
+    document.getElementById('logo-file-upload').addEventListener('change', function(e) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 500000) { alert('Logo file too large (max 500 KB). Use a smaller image.'); return; }
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const base64 = ev.target.result;
+            // Save immediately to settings
+            const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+            existing.logoUrl = base64;
+            localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(existing));
+            // Update preview
+            document.getElementById('logo-preview-img').src = base64;
+            document.getElementById('logo-preview').classList.remove('hidden');
+            document.getElementById('logo-file-name').textContent = file.name;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    window.removeLogo = function() {
+        const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        delete existing.logoUrl;
+        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(existing));
+        document.getElementById('logo-preview').classList.add('hidden');
+        document.getElementById('logo-preview-img').src = '';
+        document.getElementById('logo-file-name').textContent = 'No file chosen';
+    };
+
+    function showSettingsStatus(id, msg, cls) {
+        const el = document.getElementById(id);
+        el.textContent = msg; el.className = `text-sm h-5 ${cls}`;
+        setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 5000);
+    }
+
+    window.saveFirebaseConfig = function() {
+        const config = {
+            apiKey: document.getElementById('cfg-apiKey').value.trim(),
+            authDomain: document.getElementById('cfg-authDomain').value.trim(),
+            projectId: document.getElementById('cfg-projectId').value.trim(),
+            storageBucket: document.getElementById('cfg-storageBucket').value.trim(),
+            messagingSenderId: document.getElementById('cfg-messagingSenderId').value.trim(),
+            appId: document.getElementById('cfg-appId').value.trim()
+        };
+        if (!config.apiKey || !config.projectId) {
+            showSettingsStatus('firebase-save-status', 'API Key and Project ID are required.', 'text-red-400'); return;
+        }
+        localStorage.setItem(APP_CONFIG_KEY, JSON.stringify(config));
+        document.getElementById('firebase-status').textContent = '✓ Configured';
+        document.getElementById('firebase-status').className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
+        showSettingsStatus('firebase-save-status', '✓ Firebase config saved. Reload the page to activate.', 'text-green-400');
+        // Publish config to Firestore so invite links can bootstrap new devices
+        (async () => {
+            try {
+                const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+                const db = (await import('./js/firebase-init.js')).getDbInstance();
+                if (!db) return;
+                const s = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+                await setDoc(doc(db, 'public', 'appConfig'), {
+                    ...config, companyId: s.companyId || '', companyName: s.companyName || ''
+                }, { merge: true });
+            } catch(e) { console.warn('Could not publish config to Firestore:', e.message); }
+        })();
+    };
+
+    window.saveCompanySettings = function() {
+        const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const updated = {
+            ...existing,
+            companyName: document.getElementById('cfg-companyName').value.trim(),
+            companyId: document.getElementById('cfg-companyId').value.trim().toLowerCase().replace(/\s+/g, '-')
+        };
+        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
+        showSettingsStatus('company-save-status', '✓ Company settings saved.', 'text-green-400');
+    };
+
+    window.saveDriveSettings = function() {
+        const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const clientId = document.getElementById('cfg-googleClientId').value.trim();
+        const folderId = document.getElementById('cfg-driveFolderId').value.trim();
+        const updated = {
+            ...existing,
+            driveFolderId: folderId,
+            googleApiKey: document.getElementById('cfg-googleApiKey').value.trim(),
+            googleClientId: clientId
+        };
+        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
+        if (clientId && folderId) {
+            document.getElementById('drive-status').textContent = '✓ Configured';
+            document.getElementById('drive-status').className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
+        }
+        showSettingsStatus('drive-save-status', '✓ Drive settings saved.', 'text-green-400');
+    };
+
     // Init first tab
     showTab('users');
 
     // Hash routing
     if (location.hash === '#equipment') showTab('equipment');
     if (location.hash === '#checklists') showTab('checklists');
+    if (location.hash === '#settings') showTab('settings');
 </script>
 </body>
 </html>
