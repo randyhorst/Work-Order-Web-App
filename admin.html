@@ -500,6 +500,21 @@
         }
     }
 
+    function syncFromDOM() {
+        Object.keys(editableChecklists).forEach(key => {
+            const nameInput = document.querySelector(`#cl-block-${key} > div:first-child input[type="text"]`);
+            if (nameInput) editableChecklists[key].name = nameInput.value;
+            editableChecklists[key].sections.forEach((section, secIdx) => {
+                const secTitle = document.querySelector(`#sec-title-${key}-${secIdx}`);
+                if (secTitle) section.title = secTitle.value;
+                section.items.forEach((item, itemIdx) => {
+                    const itemInput = document.querySelector(`#item-${key}-${secIdx}-${itemIdx}`);
+                    if (itemInput) section.items[itemIdx] = itemInput.value;
+                });
+            });
+        });
+    }
+
     function renderChecklistEditor() {
         const container = document.getElementById('checklist-editor-container');
         container.innerHTML = '';
@@ -507,11 +522,11 @@
             const div = document.createElement('div');
             div.className = 'bg-gray-800 border border-gray-700 rounded-xl p-5 space-y-4';
             div.id = `cl-block-${key}`;
+            const escapedName = cl.name.replace(/"/g, '&quot;');
             div.innerHTML = `
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3 flex-1">
-                        <input type="text" value="${cl.name}" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm font-semibold flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Equipment type name"
-                            onchange="editableChecklists['${key}'].name = this.value">
+                        <input type="text" value="${escapedName}" id="cl-name-${key}" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm font-semibold flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Equipment type name">
                         <span class="text-xs text-gray-500 font-mono">key: ${key}</span>
                     </div>
                     <button onclick="deleteChecklistType('${key}')" class="text-red-500 hover:text-red-400 text-xs border border-red-800 px-3 py-1.5 rounded-lg transition">Delete Type</button>
@@ -531,10 +546,10 @@
         editableChecklists[key].sections.forEach((section, secIdx) => {
             const secDiv = document.createElement('div');
             secDiv.className = 'bg-gray-750 border border-gray-600 rounded-lg p-3 space-y-2';
+            const escapedTitle = section.title.replace(/"/g, '&quot;');
             secDiv.innerHTML = `
                 <div class="flex items-center gap-2">
-                    <input type="text" value="${section.title}" class="flex-1 bg-gray-600 border border-gray-500 rounded px-2 py-1.5 text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Section title"
-                        onchange="editableChecklists['${key}'].sections[${secIdx}].title = this.value">
+                    <input type="text" value="${escapedTitle}" id="sec-title-${key}-${secIdx}" class="flex-1 bg-gray-600 border border-gray-500 rounded px-2 py-1.5 text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Section title">
                     <button onclick="deleteSection('${key}', ${secIdx})" class="text-red-500 hover:text-red-400 text-xs px-2 py-1 rounded border border-red-800 transition">✕</button>
                 </div>
                 <div id="items-${key}-${secIdx}" class="space-y-1 pl-2"></div>
@@ -552,10 +567,10 @@
         editableChecklists[key].sections[secIdx].items.forEach((item, itemIdx) => {
             const row = document.createElement('div');
             row.className = 'flex items-center gap-2';
+            const escapedItem = item.replace(/"/g, '&quot;');
             row.innerHTML = `
                 <span class="text-gray-500 text-xs">·</span>
-                <input type="text" value="${item}" class="flex-1 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Checklist item"
-                    onchange="editableChecklists['${key}'].sections[${secIdx}].items[${itemIdx}] = this.value">
+                <input type="text" value="${escapedItem}" id="item-${key}-${secIdx}-${itemIdx}" class="flex-1 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Checklist item">
                 <button onclick="deleteItem('${key}', ${secIdx}, ${itemIdx})" class="text-red-500 hover:text-red-400 text-xs px-1">✕</button>
             `;
             container.appendChild(row);
@@ -563,33 +578,39 @@
     }
 
     window.addSection = function(key) {
+        syncFromDOM();
         editableChecklists[key].sections.push({ title: 'New Section', items: [] });
-        renderChecklistEditor();
+        renderSections(key);
     };
 
     window.deleteSection = function(key, secIdx) {
         if (!confirm('Delete this section and all its items?')) return;
+        syncFromDOM();
         editableChecklists[key].sections.splice(secIdx, 1);
-        renderChecklistEditor();
+        renderSections(key);
     };
 
     window.addItem = function(key, secIdx) {
+        syncFromDOM();
         editableChecklists[key].sections[secIdx].items.push('New Item');
-        renderChecklistEditor();
+        renderItems(key, secIdx);
     };
 
     window.deleteItem = function(key, secIdx, itemIdx) {
+        syncFromDOM();
         editableChecklists[key].sections[secIdx].items.splice(itemIdx, 1);
-        renderChecklistEditor();
+        renderItems(key, secIdx);
     };
 
     window.deleteChecklistType = function(key) {
         if (!confirm(`Delete the "${editableChecklists[key].name}" checklist type entirely?`)) return;
+        syncFromDOM();
         delete editableChecklists[key];
         renderChecklistEditor();
     };
 
     window.addNewChecklistType = function() {
+        syncFromDOM();
         const key = 'custom_' + Date.now();
         editableChecklists[key] = { name: 'New Equipment Type', sections: [{ title: 'General', items: ['Item 1'] }] };
         renderChecklistEditor();
@@ -597,6 +618,7 @@
     };
 
     window.saveAllChecklists = async function() {
+        syncFromDOM();
         const statusEl = document.getElementById('checklist-save-status');
         statusEl.textContent = 'Saving...';
         statusEl.className = 'text-sm h-5 text-center text-gray-400';
