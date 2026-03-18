@@ -6,16 +6,41 @@
 import { getCurrentUserProfile, logoutUser, onAuthChange } from './auth.js';
 import { initTheme, toggleTheme } from './theme.js';
 
-export async function renderNav(activePage = '') {
-    // Render immediately with basic info, then re-render once auth settles
-    const profile = await new Promise((resolve) => {
+const PROFILE_CACHE_KEY = 'shopNavProfile';
+
+function getCachedProfile() {
+    try { return JSON.parse(sessionStorage.getItem(PROFILE_CACHE_KEY) || 'null'); } catch { return null; }
+}
+
+function setCachedProfile(profile) {
+    try { sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile)); } catch {}
+}
+
+export function clearNavCache() {
+    try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch {}
+}
+
+async function resolveProfile() {
+    // Return cached profile instantly if available
+    const cached = getCachedProfile();
+    if (cached) return cached;
+
+    // Otherwise wait for Firebase auth and fetch from Firestore
+    return new Promise((resolve) => {
         const unsub = onAuthChange(async (user) => {
             unsub();
             if (!user) { resolve(null); return; }
-            try { resolve(await getCurrentUserProfile()); }
-            catch { resolve(null); }
+            try {
+                const profile = await getCurrentUserProfile();
+                setCachedProfile(profile);
+                resolve(profile);
+            } catch { resolve(null); }
         });
     });
+}
+
+export async function renderNav(activePage = '') {
+    const profile = await resolveProfile();
     await initTheme(profile?.uid || null);
     const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
     const companyName = settings.companyName || 'Shop Work Orders';
@@ -27,7 +52,7 @@ export async function renderNav(activePage = '') {
 
     const pages = [
         { href: 'queue.html', label: 'Queue', icon: '📋' },
-        { href: 'new-work-order.html', label: 'New Order', icon: '➕' },
+        { href: 'new-work-order.html', label: 'New Work Order', icon: '➕' },
         { href: 'history.html', label: 'History', icon: '🔍' },
         { href: 'dashboard.html', label: 'Equipment', icon: '🔧' },
         { href: 'admin.html', label: 'Admin', icon: '⚙️', adminOnly: true },
@@ -61,6 +86,7 @@ export async function renderNav(activePage = '') {
     });
 
     document.getElementById('logout-btn')?.addEventListener('click', async () => {
+        clearNavCache();
         await logoutUser();
         window.location.href = 'login.html';
     });
