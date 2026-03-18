@@ -125,7 +125,7 @@ export async function searchWorkOrders(filters = {}) {
     return results;
 }
 
-export function subscribeToActiveQueue(callback) {
+export function subscribeToActiveQueue(callback, onError) {
     const db = getDbInstance();
     const companyId = getCompanyId();
     const q = query(
@@ -135,6 +135,9 @@ export function subscribeToActiveQueue(callback) {
     );
     return onSnapshot(q, snap => {
         callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, err => {
+        console.error('Queue subscription error:', err);
+        if (onError) onError(err);
     });
 }
 

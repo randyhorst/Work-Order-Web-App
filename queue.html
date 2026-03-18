@@ -169,6 +169,20 @@
     subscribeToActiveQueue(orders => {
         allOrders = orders;
         renderQueue();
+    }, err => {
+        const container = document.getElementById('queue-list');
+        const msg = err.message || '';
+        if (msg.includes('index')) {
+            // Extract the index creation URL from the error
+            const urlMatch = msg.match(/(https:\/\/console\.firebase\.google\.com[^\s"]+)/);
+            container.innerHTML = `<div class="text-center py-12 space-y-3">
+                <p class="text-red-400 font-semibold">⚠️ Firestore Composite Index Required</p>
+                <p class="text-gray-400 text-sm">The queue query needs an index. Click below to create it (takes ~1 min):</p>
+                ${urlMatch ? `<a href="${urlMatch[1]}" target="_blank" class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Create Index in Firebase Console →</a>` : `<p class="text-gray-500 text-xs">${msg}</p>`}
+            </div>`;
+        } else {
+            container.innerHTML = `<div class="text-center text-red-400 py-12">Error loading queue: ${msg}</div>`;
+        }
     });
 </script>
 </body>

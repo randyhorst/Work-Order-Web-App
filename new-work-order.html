@@ -153,20 +153,25 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="pt-4 grid grid-cols-2 gap-4">
-                <button onclick="clearForm()" class="flex justify-center py-3 px-4 border-2 border-red-600 rounded-lg shadow-lg text-base font-medium text-red-600 bg-white hover:bg-red-50 transition">
-                    Clear Form
-                </button>
-                <button onclick="saveDraft()" class="flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-base font-medium text-white bg-gray-600 hover:bg-gray-500 transition">
-                    💾 Save Draft
+            <div id="back-btn-row" class="hidden pt-4">
+                <button onclick="window.location.href='queue.html'" class="w-full flex justify-center py-3 px-4 border-2 border-gray-500 rounded-lg shadow-lg text-base font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 transition">
+                    ← Back to Queue
                 </button>
             </div>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="pt-4 grid grid-cols-2 gap-4">
+                <button onclick="saveDraft()" id="save-draft-btn" class="flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-base font-medium text-white bg-gray-600 hover:bg-gray-500 transition">
+                    💾 Save
+                </button>
                 <button onclick="generatePrintView()" class="flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition">
                     🖨️ Preview / Print
                 </button>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
                 <button onclick="completeAndSave()" class="flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-base font-medium text-white bg-green-600 hover:bg-green-700 transition">
                     ✅ Mark Completed
+                </button>
+                <button onclick="clearForm()" class="flex justify-center py-3 px-4 border-2 border-red-600 rounded-lg shadow-lg text-base font-medium text-red-600 bg-white hover:bg-red-50 transition">
+                    Clear / New
                 </button>
             </div>
             <p id="save-status" class="text-center text-sm text-gray-400 h-5"></p>
@@ -287,6 +292,9 @@
     const editId = params.get('id');
     if (editId) {
         loadExistingWorkOrder(editId);
+        // Update UI for edit mode
+        document.querySelector('header h1').textContent = 'Edit Work Order';
+        document.getElementById('back-btn-row').classList.remove('hidden');
     }
 
     async function loadExistingWorkOrder(id) {
@@ -602,7 +610,7 @@
         }
         setStatus('Saving...', 'text-gray-400');
         try {
-            const data = collectFormData('new');
+            const data = collectFormData();
             if (currentWOId) {
                 await updateWorkOrder(currentWOId, data);
                 setStatus('✓ Draft updated', 'text-green-400');
