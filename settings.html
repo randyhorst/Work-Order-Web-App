@@ -125,6 +125,14 @@
         <p id="drive-save-status" class="text-sm h-5"></p>
     </div>
 
+    <!-- Claim Admin (shown only when no admin exists yet) -->
+    <div id="claim-admin-section" class="hidden bg-gray-800 border border-orange-600 rounded-xl p-6 space-y-4">
+        <h2 class="text-lg font-bold text-orange-300">⚠️ No Admin Assigned Yet</h2>
+        <p class="text-sm text-gray-400">Your account exists but has no admin role. Since there is no admin in this company yet, you can claim the admin role now.</p>
+        <button onclick="claimAdmin()" class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Claim Admin Role</button>
+        <p id="claim-status" class="text-sm h-5"></p>
+    </div>
+
     <!-- Admin First-Time Setup -->
     <div class="bg-gray-800 border border-yellow-700 rounded-xl p-6 space-y-4">
         <h2 class="text-lg font-bold text-yellow-300">🚀 First-Time Admin Setup</h2>
@@ -158,8 +166,9 @@
 </div>
 
 <script type="module">
-    import { initFirebase } from './js/firebase-init.js';
-    import { registerUser } from './js/auth.js';
+    import { initFirebase, getAuthInstance, getDbInstance } from './js/firebase-init.js';
+    import { registerUser, getCurrentUserProfile, onAuthChange } from './js/auth.js';
+    import { getUsers, updateUser } from './js/db.js';
 
     const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
     const APP_SETTINGS_KEY = 'shopAppSettings';
@@ -290,6 +299,38 @@
         const { renderNav } = await import('./js/nav.js');
         renderNav('settings.html');
     } catch(e) {}
+
+    // Check if logged-in user needs to claim admin (no admin exists in company yet)
+    try {
+        const profile = await getCurrentUserProfile();
+        if (profile && profile.role !== 'admin') {
+            const users = await getUsers();
+            const hasAdmin = users.some(u => u.role === 'admin');
+            if (!hasAdmin) {
+                document.getElementById('claim-admin-section').classList.remove('hidden');
+            }
+        }
+    } catch(e) {}
+
+    window.claimAdmin = async function() {
+        try {
+            const profile = await getCurrentUserProfile();
+            if (!profile) { showStatus('claim-status', 'Not logged in.', 'text-red-400'); return; }
+            // Double-check no admin exists before promoting
+            const users = await getUsers();
+            const hasAdmin = users.some(u => u.role === 'admin');
+            if (hasAdmin) {
+                showStatus('claim-status', 'An admin already exists. Ask them to change your role.', 'text-red-400');
+                document.getElementById('claim-admin-section').classList.add('hidden');
+                return;
+            }
+            await updateUser(profile.uid, { role: 'admin' });
+            showStatus('claim-status', '✓ You are now admin. Reload the page.', 'text-green-400');
+            setTimeout(() => window.location.reload(), 1500);
+        } catch(e) {
+            showStatus('claim-status', 'Error: ' + e.message, 'text-red-400');
+        }
+    };
 </script>
 </body>
 </html>

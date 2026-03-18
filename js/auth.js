@@ -29,8 +29,14 @@ export async function registerUser(email, password, name, companyId, role = 'wor
     const db = getDbInstance();
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     const uid = cred.user.uid;
+
+    // If this is the very first user in the company, force admin role
+    const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const existing = await getDocs(collection(db, 'companies', companyId, 'users'));
+    const assignedRole = existing.empty ? 'admin' : role;
+
     await setDoc(doc(db, 'companies', companyId, 'users', uid), {
-        email, name, role, companyId,
+        email, name, role: assignedRole, companyId,
         createdAt: serverTimestamp(),
         lastLogin: serverTimestamp()
     });
