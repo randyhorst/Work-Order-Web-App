@@ -1,5 +1,6 @@
 /* styles.css - Shared styles for Shop Work Order App */
-body { font-family: 'Inter', sans-serif; }
+body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
+#main-nav { overflow-x: hidden; }
 
 /* Theme tokens (light default) */
 :root,
