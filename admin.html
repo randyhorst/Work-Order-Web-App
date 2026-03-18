@@ -267,11 +267,10 @@
             const role = document.getElementById('invite-role').value;
             const code = await createInviteCode(role, profile.uid);
             const baseUrl = window.location.href.replace('admin.html', '');
-            // Embed firebase config + settings so new users can initialize Firebase on register page
-            const fbCfg = localStorage.getItem('shopAppFirebaseConfig') || '{}';
-            const appSettings = localStorage.getItem('shopAppSettings') || '{}';
-            const payload = btoa(JSON.stringify({ fbCfg, appSettings }));
-            const link = `${baseUrl}register.html?invite=${code}&cfg=${payload}`;
+            // Only embed project ID — register page fetches full config via Firestore REST
+            const fbCfg = JSON.parse(localStorage.getItem('shopAppFirebaseConfig') || '{}');
+            const projectId = fbCfg.projectId || '';
+            const link = `${baseUrl}register.html?invite=${code}${projectId ? '&p=' + projectId : ''}`;
             document.getElementById('invite-code-display').textContent = code;
             const linkEl = document.getElementById('invite-link-display');
             linkEl.textContent = link;

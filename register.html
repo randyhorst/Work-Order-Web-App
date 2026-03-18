@@ -45,15 +45,34 @@
     import { registerUser } from './js/auth.js';
     import { validateInviteCode, markInviteCodeUsed } from './js/db.js';
 
-    // Bootstrap Firebase config from invite link if present (?cfg=base64payload)
     const params = new URLSearchParams(window.location.search);
-    const cfgParam = params.get('cfg');
-    if (cfgParam) {
+
+    // If no Firebase config stored yet, fetch it from Firestore REST using project ID in URL
+    const projectId = params.get('p');
+    if (projectId && !localStorage.getItem('shopAppFirebaseConfig')) {
         try {
-            const payload = JSON.parse(atob(cfgParam));
-            if (payload.fbCfg) localStorage.setItem('shopAppFirebaseConfig', payload.fbCfg);
-            if (payload.appSettings) localStorage.setItem('shopAppSettings', payload.appSettings);
-        } catch(e) { console.warn('Could not parse cfg param', e); }
+            const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/public/appConfig`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                const f = data.fields || {};
+                const getString = k => f[k]?.stringValue || '';
+                const config = {
+                    apiKey: getString('apiKey'),
+                    authDomain: getString('authDomain'),
+                    projectId: getString('projectId') || projectId,
+                    storageBucket: getString('storageBucket'),
+                    messagingSenderId: getString('messagingSenderId'),
+                    appId: getString('appId')
+                };
+                const appSettings = {
+                    companyId: getString('companyId'),
+                    companyName: getString('companyName')
+                };
+                localStorage.setItem('shopAppFirebaseConfig', JSON.stringify(config));
+                localStorage.setItem('shopAppSettings', JSON.stringify(appSettings));
+            }
+        } catch(e) { console.warn('Could not fetch config from Firestore REST:', e); }
     }
 
     initFirebase();
