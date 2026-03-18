@@ -20,6 +20,7 @@
         <button onclick="showTab('equipment')" data-tab="equipment" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">🔧 Equipment</button>
         <button onclick="showTab('checklists')" data-tab="checklists" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">✅ Checklists</button>
         <button onclick="showTab('export')" data-tab="export" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">📤 Export</button>
+        <button onclick="showTab('batch')" data-tab="batch" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">📥 Batch Import</button>
     </div>
 
     <!-- USERS TAB -->
@@ -77,6 +78,45 @@
         <div id="equipment-list-admin" class="space-y-2">
             <div class="text-gray-500 text-sm">Loading equipment...</div>
         </div>
+    </div>
+
+    <!-- BATCH IMPORT TAB -->
+    <div id="tab-batch" class="tab-content hidden space-y-4">
+        <div>
+            <h2 class="text-lg font-bold text-white">Batch Equipment Import</h2>
+            <p class="text-sm text-gray-400 mt-1">Paste a tab-separated or CSV equipment list below. Each row = one unit. Required columns: <strong>Unit #</strong> and <strong>Description</strong>. Optional: Type, Make/Model, Serial #, Licence Plate.</p>
+        </div>
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-3">
+            <p class="text-xs text-gray-400">Expected column order (tab or comma separated):</p>
+            <code class="block text-xs bg-gray-900 rounded px-3 py-2 text-indigo-300">Unit # | Description | Type | Serial # | Licence Plate | Requires Inspection (yes/no)</code>
+            <textarea id="batch-paste" rows="10" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="05-003&#9;2010 Dodge Ram 3500&#9;Truck L/D&#9;3D73Y3CL9AG133856&#9;HP5026&#9;yes
+05-005&#9;2005 Ford F350&#9;Truck L/D&#9;1FTWX33P35EB61906&#9;RK9903&#9;yes
+16-001&#9;HLA Snow Blade&#9;Attachment&#9;25202129&#9;&#9;no"></textarea>
+            <div class="flex gap-2">
+                <button onclick="parseBatch()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Preview</button>
+                <button onclick="clearBatch()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2 rounded-lg text-sm transition">Clear</button>
+            </div>
+        </div>
+        <div id="batch-preview" class="hidden space-y-3">
+            <div class="flex items-center justify-between">
+                <p id="batch-preview-count" class="text-sm text-gray-300"></p>
+                <button onclick="importBatch()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition">✓ Import All to Firestore</button>
+            </div>
+            <div id="batch-preview-table" class="overflow-x-auto">
+                <table class="w-full text-xs text-left border-collapse">
+                    <thead><tr class="text-gray-400 border-b border-gray-700">
+                        <th class="py-2 pr-4">Unit #</th>
+                        <th class="py-2 pr-4">Description</th>
+                        <th class="py-2 pr-4">Type</th>
+                        <th class="py-2 pr-4">Serial #</th>
+                        <th class="py-2 pr-4">Plate</th>
+                        <th class="py-2">Inspection</th>
+                    </tr></thead>
+                    <tbody id="batch-table-body" class="text-gray-300"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="batch-status" class="hidden bg-gray-900 border border-gray-700 rounded-xl p-4 text-sm font-mono text-gray-300 h-48 overflow-y-auto whitespace-pre-wrap"></div>
     </div>
 
     <!-- CHECKLISTS TAB -->
@@ -264,6 +304,97 @@
         if (!confirm('Remove this equipment from the list?')) return;
         await deleteEquipment(id);
         loadEquipment();
+    };
+
+    // ── BATCH IMPORT ───────────────────────────────────────────
+
+    let batchRows = [];
+
+    window.parseBatch = function() {
+        const raw = document.getElementById('batch-paste').value.trim();
+        if (!raw) { alert('Paste some data first.'); return; }
+
+        batchRows = [];
+        const lines = raw.split('\n').filter(l => l.trim());
+
+        for (const line of lines) {
+            // Support tab-separated or comma-separated
+            const sep = line.includes('\t') ? '\t' : ',';
+            const cols = line.split(sep).map(c => c.trim());
+            const unitNumber = cols[0];
+            if (!unitNumber) continue;
+            const description = cols[1] || '';
+            const equipmentType = cols[2] || 'Equipment';
+            const serialNumber = cols[3] || '';
+            const licensePlate = cols[4] || '';
+            const inspFlag = (cols[5] || 'yes').toLowerCase();
+            const requiresInspection = inspFlag !== 'no' && inspFlag !== 'false' && inspFlag !== '0';
+            batchRows.push({ unitNumber, makeModel: description, equipmentType, serialNumber, licensePlate, requiresInspection });
+        }
+
+        const tbody = document.getElementById('batch-table-body');
+        tbody.innerHTML = batchRows.map(r => `
+            <tr class="border-b border-gray-800">
+                <td class="py-1.5 pr-4 font-mono text-indigo-300">${r.unitNumber}</td>
+                <td class="py-1.5 pr-4">${r.makeModel}</td>
+                <td class="py-1.5 pr-4 text-gray-400">${r.equipmentType}</td>
+                <td class="py-1.5 pr-4 text-gray-500 font-mono text-xs">${r.serialNumber || '—'}</td>
+                <td class="py-1.5 pr-4 text-gray-500">${r.licensePlate || '—'}</td>
+                <td class="py-1.5">${r.requiresInspection ? '<span class="text-green-400">✓ Yes</span>' : '<span class="text-gray-500">No</span>'}</td>
+            </tr>`).join('');
+        document.getElementById('batch-preview-count').textContent = `${batchRows.length} units ready to import`;
+        document.getElementById('batch-preview').classList.remove('hidden');
+        document.getElementById('batch-status').classList.add('hidden');
+        document.getElementById('batch-status').textContent = '';
+    };
+
+    window.clearBatch = function() {
+        document.getElementById('batch-paste').value = '';
+        document.getElementById('batch-preview').classList.add('hidden');
+        document.getElementById('batch-status').classList.add('hidden');
+        batchRows = [];
+    };
+
+    window.importBatch = async function() {
+        if (!batchRows.length) { alert('No rows to import. Click Preview first.'); return; }
+        const statusEl = document.getElementById('batch-status');
+        statusEl.textContent = '';
+        statusEl.classList.remove('hidden');
+
+        function log(msg) { statusEl.textContent += msg + '\n'; statusEl.scrollTop = statusEl.scrollHeight; }
+
+        const importBtn = document.querySelector('[onclick="importBatch()"]');
+        importBtn.disabled = true;
+        importBtn.textContent = '⏳ Importing...';
+
+        try {
+            const existing = await getEquipmentList();
+            const existingUnits = new Set(existing.map(e => e.unitNumber));
+            let added = 0, skipped = 0;
+
+            for (const eq of batchRows) {
+                if (existingUnits.has(eq.unitNumber)) {
+                    log(`SKIP  ${eq.unitNumber} — already exists`);
+                    skipped++; continue;
+                }
+                await addEquipment({
+                    ...eq,
+                    inspectionResetMonthDay: eq.requiresInspection ? 'Nov 1' : '',
+                    active: true
+                });
+                log(`✓  ${eq.unitNumber} — ${eq.makeModel}`);
+                added++;
+            }
+
+            log(`\n✅ Done! ${added} added, ${skipped} skipped.`);
+            importBtn.textContent = `✅ ${added} units imported`;
+            importBtn.classList.replace('bg-green-600', 'bg-gray-600');
+            loadEquipment();
+        } catch(e) {
+            log(`\n❌ ERROR: ${e.message}`);
+            importBtn.disabled = false;
+            importBtn.textContent = '✓ Import All to Firestore';
+        }
     };
 
     // ── CHECKLISTS ─────────────────────────────────────────────
