@@ -21,13 +21,13 @@
 
 <script type="module">
 import { initFirebase, getDbInstance } from './js/firebase-init.js';
-import { requireAuth } from './js/auth.js';
 import { getEquipmentList } from './js/db.js';
 import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAppSettings } from './js/app-config.js';
 
-initFirebase();
-await requireAuth();
+try { initFirebase(); } catch(e) {}
+
+document.getElementById('status').textContent = 'Ready. Click the button below to import all equipment.';
 
 const equipment = [
   // ── Trucks L/D ──────────────────────────────────────────────
