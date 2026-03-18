@@ -3,11 +3,23 @@
  * Shared navigation bar rendered on every page.
  */
 
-import { getCurrentUserProfile, logoutUser } from './auth.js';
+import { getCurrentUserProfile, logoutUser, onAuthChange } from './auth.js';
 import { initTheme, toggleTheme } from './theme.js';
 
+/** Wait for Firebase auth state to settle, then return the user profile. */
+async function waitForProfile() {
+    return new Promise((resolve) => {
+        const unsub = onAuthChange(async (user) => {
+            unsub();
+            if (!user) { resolve(null); return; }
+            try { resolve(await getCurrentUserProfile()); }
+            catch { resolve(null); }
+        });
+    });
+}
+
 export async function renderNav(activePage = '') {
-    const profile = await getCurrentUserProfile();
+    const profile = await waitForProfile();
     const isAdmin = profile?.role === 'admin';
     await initTheme(profile?.uid || null);
     const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
