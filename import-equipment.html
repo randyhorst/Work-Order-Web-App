@@ -5,30 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Equipment Import</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen p-8">
 <div class="max-w-2xl mx-auto space-y-6">
     <h1 class="text-2xl font-bold text-white">One-Time Equipment Import</h1>
-    <p class="text-gray-400 text-sm">This page imports all Pineview equipment into Firestore. Run once then delete or ignore.</p>
+    <p class="text-gray-400 text-sm">Imports all Pineview equipment into Firestore. Safe to run multiple times — duplicates are skipped.</p>
     <div id="progress-bar-wrap" class="hidden w-full bg-gray-700 rounded-full h-4">
         <div id="progress-bar" class="bg-indigo-500 h-4 rounded-full transition-all duration-200" style="width:0%"></div>
     </div>
-    <p id="progress-label" class="text-sm text-indigo-300 hidden">0 / 0 units processed...</p>
-    <div id="status" class="bg-gray-800 border border-gray-700 rounded-xl p-4 text-sm text-gray-300 h-64 overflow-y-auto font-mono whitespace-pre-wrap">Ready. Click Import to begin...</div>
-    <button id="import-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition text-lg w-full">▶ Import All Equipment (100+ units)</button>
-    <p class="text-xs text-gray-500">Safe to run multiple times — duplicate unit numbers will be skipped.</p>
+    <p id="progress-label" class="text-sm text-indigo-300 hidden"></p>
+    <div id="status" class="bg-gray-800 border border-gray-700 rounded-xl p-4 text-sm text-gray-300 h-64 overflow-y-auto font-mono whitespace-pre-wrap">Ready — click the button below.</div>
+    <button onclick="runImport()" style="background:#4f46e5;color:white;padding:16px;border-radius:8px;font-size:18px;font-weight:700;width:100%;cursor:pointer;border:none;">
+        ▶ Import All Equipment (100+ units)
+    </button>
 </div>
 
-<script type="module">
-import { initFirebase, getDbInstance } from './js/firebase-init.js';
-import { getEquipmentList } from './js/db.js';
-import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getAppSettings } from './js/app-config.js';
-
-try { initFirebase(); } catch(e) {}
-
-document.getElementById('status').textContent = 'Ready. Click the button below to import all equipment.';
-
+<script>
 const equipment = [
   // ── Trucks L/D ──────────────────────────────────────────────
   { unitNumber:'05-003', equipmentType:'Truck L/D', makeModel:'2010 Dodge Ram 3500',       serialNumber:'3D73Y3CL9AG133856', licensePlate:'HP5026', requiresInspection:true },
@@ -151,76 +145,72 @@ const equipment = [
   { unitNumber:'38-002', equipmentType:'Drone Generator', makeModel:'Procore 15000 DG15000E',          serialNumber:'DG15000E23060029',      licensePlate:'',   requiresInspection:false },
 ];
 
-const statusEl = document.getElementById('status');
-
 function log(msg) {
-    statusEl.textContent += msg + '\n';
-    statusEl.scrollTop = statusEl.scrollHeight;
+    const el = document.getElementById('status');
+    el.textContent += msg + '\n';
+    el.scrollTop = el.scrollHeight;
 }
 
-document.getElementById('import-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('import-btn');
-    const progressWrap = document.getElementById('progress-bar-wrap');
-    const progressBar = document.getElementById('progress-bar');
-    const progressLabel = document.getElementById('progress-label');
-
+window.runImport = async function() {
+    const btn = document.querySelector('button');
     btn.disabled = true;
-    btn.textContent = '⏳ Starting import...';
-    statusEl.textContent = '';
-    progressWrap.classList.remove('hidden');
-    progressLabel.classList.remove('hidden');
+    btn.textContent = '⏳ Starting...';
+    document.getElementById('status').textContent = '';
+    document.getElementById('progress-bar-wrap').classList.remove('hidden');
+    document.getElementById('progress-label').classList.remove('hidden');
 
     try {
-        log('Connecting to Firebase...');
-        const db = getDbInstance();
-        if (!db) throw new Error('Firebase not initialized. Make sure you are logged in and Firebase is configured.');
+        log('Reading Firebase config from localStorage...');
+        const cfg = JSON.parse(localStorage.getItem('shopAppFirebaseConfig') || '{}');
+        if (!cfg.apiKey) throw new Error('No Firebase config found. Go to Settings and save your Firebase config first, then come back here.');
 
-        const settings = getAppSettings();
-        const companyId = settings?.companyId;
+        const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+        const companyId = settings.companyId;
         if (!companyId) throw new Error('No Company ID found. Go to Settings and save your Company ID first.');
 
-        log(`Company ID: ${companyId}`);
+        log('Initializing Firebase...');
+        let app;
+        try { app = firebase.app(); } catch(e) { app = firebase.initializeApp(cfg); }
+        const db = firebase.firestore();
+
+        log(`Company: ${settings.companyName || companyId}`);
         log('Checking for existing equipment...');
 
-        const existing = await getEquipmentList();
-        const existingUnits = new Set(existing.map(e => e.unitNumber));
-        log(`Found ${existing.length} existing units. Starting import of ${equipment.length} units...\n`);
+        const existing = await db.collection('companies').doc(companyId).collection('equipment').get();
+        const existingUnits = new Set(existing.docs.map(d => d.data().unitNumber));
+        log(`Found ${existingUnits.size} existing. Importing ${equipment.length} units...\n`);
 
         let added = 0, skipped = 0;
-        const col = collection(db, 'companies', companyId, 'equipment');
+        const col = db.collection('companies').doc(companyId).collection('equipment');
 
         for (let i = 0; i < equipment.length; i++) {
             const eq = equipment[i];
-            const pct = Math.round(((i + 1) / equipment.length) * 100);
-            progressBar.style.width = pct + '%';
-            progressLabel.textContent = `${i + 1} / ${equipment.length} units processed...`;
+            document.getElementById('progress-bar').style.width = Math.round(((i+1)/equipment.length)*100) + '%';
+            document.getElementById('progress-label').textContent = `${i+1} / ${equipment.length}`;
 
             if (existingUnits.has(eq.unitNumber)) {
-                log(`SKIP  ${eq.unitNumber} — already exists`);
-                skipped++;
-                continue;
+                log(`SKIP  ${eq.unitNumber}`);
+                skipped++; continue;
             }
-            await addDoc(col, {
+            await col.add({
                 ...eq,
                 inspectionResetMonthDay: eq.requiresInspection ? 'Nov 1' : '',
                 active: true,
-                createdAt: serverTimestamp()
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            log(`✓ OK   ${eq.unitNumber} — ${eq.makeModel}`);
+            log(`✓  ${eq.unitNumber} — ${eq.makeModel}`);
             added++;
         }
 
-        log(`\n✅ DONE! ${added} units added, ${skipped} skipped.`);
-        btn.textContent = `✅ Import complete — ${added} units added`;
-        btn.classList.replace('bg-indigo-600', 'bg-green-600');
-        progressLabel.textContent = `Complete! ${added} added, ${skipped} skipped.`;
+        log(`\n✅ DONE! ${added} added, ${skipped} skipped.`);
+        btn.textContent = `✅ Done — ${added} units added`;
+        btn.style.background = '#16a34a';
     } catch(e) {
         log(`\n❌ ERROR: ${e.message}`);
         btn.disabled = false;
-        btn.textContent = '▶ Retry Import';
-        btn.classList.remove('opacity-50');
+        btn.textContent = '▶ Retry';
     }
-});
+};
 </script>
 </body>
 </html>
