@@ -62,6 +62,10 @@
                 <input type="text" id="eq-unit" placeholder="Unit # (e.g., SVL 75-3)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <input type="text" id="eq-type" placeholder="Type (e.g., Kubota SVL)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <input type="text" id="eq-make" placeholder="Make / Model (optional)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <div class="flex items-center gap-3 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+                    <input type="checkbox" id="eq-requires-inspection" class="w-4 h-4 rounded accent-indigo-500" checked>
+                    <label for="eq-requires-inspection" class="text-sm text-gray-300 cursor-pointer">Requires annual inspection</label>
+                </div>
                 <input type="text" id="eq-reset" placeholder="Annual reset date (e.g., Nov 1)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
             <div class="flex gap-2">
@@ -219,7 +223,10 @@
                     <div>
                         <p class="text-white font-semibold text-sm">${eq.unitNumber}</p>
                         <p class="text-gray-400 text-xs">${eq.equipmentType || '—'} ${eq.makeModel ? '· ' + eq.makeModel : ''}</p>
-                        ${eq.inspectionResetMonthDay ? `<p class="text-gray-500 text-xs">Annual reset: ${eq.inspectionResetMonthDay}</p>` : ''}
+                        <div class="flex items-center gap-2 mt-0.5">
+                            ${eq.requiresInspection !== false ? `<span class="text-xs text-green-400">✓ Inspection required</span>` : `<span class="text-xs text-gray-500">No inspection</span>`}
+                            ${eq.inspectionResetMonthDay && eq.requiresInspection !== false ? `<span class="text-xs text-gray-500">· Reset: ${eq.inspectionResetMonthDay}</span>` : ''}
+                        </div>
                     </div>
                     <button onclick="removeEquipment('${eq.id}')" class="text-red-500 hover:text-red-400 text-xs border border-red-800 hover:border-red-500 px-3 py-1.5 rounded-lg transition">Remove</button>
                 </div>`).join('');
@@ -234,11 +241,21 @@
         const unit = document.getElementById('eq-unit').value.trim();
         const type = document.getElementById('eq-type').value.trim();
         if (!unit || !type) { alert('Unit # and Type are required.'); return; }
-        await addEquipment({ unitNumber: unit, equipmentType: type, makeModel: document.getElementById('eq-make').value.trim(), inspectionResetMonthDay: document.getElementById('eq-reset').value.trim(), active: true });
+        const requiresInspection = document.getElementById('eq-requires-inspection').checked;
+        const resetDate = document.getElementById('eq-reset').value.trim();
+        await addEquipment({
+            unitNumber: unit,
+            equipmentType: type,
+            makeModel: document.getElementById('eq-make').value.trim(),
+            requiresInspection,
+            inspectionResetMonthDay: requiresInspection ? resetDate : '',
+            active: true
+        });
         document.getElementById('eq-unit').value = '';
         document.getElementById('eq-type').value = '';
         document.getElementById('eq-make').value = '';
         document.getElementById('eq-reset').value = '';
+        document.getElementById('eq-requires-inspection').checked = true;
         document.getElementById('add-equipment-form').classList.add('hidden');
         loadEquipment();
     };

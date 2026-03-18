@@ -6,9 +6,9 @@
 import { getCurrentUserProfile, logoutUser, onAuthChange } from './auth.js';
 import { initTheme, toggleTheme } from './theme.js';
 
-/** Wait for Firebase auth state to settle, then return the user profile. */
-async function waitForProfile() {
-    return new Promise((resolve) => {
+export async function renderNav(activePage = '') {
+    // Render immediately with basic info, then re-render once auth settles
+    const profile = await new Promise((resolve) => {
         const unsub = onAuthChange(async (user) => {
             unsub();
             if (!user) { resolve(null); return; }
@@ -16,11 +16,6 @@ async function waitForProfile() {
             catch { resolve(null); }
         });
     });
-}
-
-export async function renderNav(activePage = '') {
-    const profile = await waitForProfile();
-    const isAdmin = profile?.role === 'admin';
     await initTheme(profile?.uid || null);
     const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
     const companyName = settings.companyName || 'Shop Work Orders';
@@ -28,17 +23,19 @@ export async function renderNav(activePage = '') {
     const nav = document.getElementById('main-nav');
     if (!nav) return;
 
+    const isAdmin = profile?.role === 'admin';
+
     const pages = [
-        { href: 'queue.html', label: 'Queue', icon: '📋', always: true },
-        { href: 'new-work-order.html', label: 'New Order', icon: '➕', always: true },
-        { href: 'history.html', label: 'History', icon: '🔍', always: true },
-        { href: 'dashboard.html', label: 'Equipment', icon: '🔧', always: true },
-        { href: 'admin.html', label: 'Admin', icon: '⚙️', always: false, adminOnly: true },
-        { href: 'settings.html', label: 'Settings', icon: '🛠️', always: false, adminOnly: true },
+        { href: 'queue.html', label: 'Queue', icon: '📋' },
+        { href: 'new-work-order.html', label: 'New Order', icon: '➕' },
+        { href: 'history.html', label: 'History', icon: '🔍' },
+        { href: 'dashboard.html', label: 'Equipment', icon: '🔧' },
+        { href: 'admin.html', label: 'Admin', icon: '⚙️', adminOnly: true },
+        { href: 'settings.html', label: 'Settings', icon: '🛠️', adminOnly: true },
     ];
 
     const links = pages
-        .filter(p => p.always || (p.adminOnly && isAdmin))
+        .filter(p => !p.adminOnly || isAdmin)
         .map(p => {
             const active = activePage === p.href ? 'bg-indigo-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white';
             return `<a href="${p.href}" class="flex flex-col items-center px-3 py-1 rounded-md text-xs font-medium ${active} transition">
