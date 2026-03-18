@@ -10,8 +10,12 @@
 <div class="max-w-2xl mx-auto space-y-6">
     <h1 class="text-2xl font-bold text-white">One-Time Equipment Import</h1>
     <p class="text-gray-400 text-sm">This page imports all Pineview equipment into Firestore. Run once then delete or ignore.</p>
-    <div id="status" class="bg-gray-800 border border-gray-700 rounded-xl p-4 text-sm text-gray-300 min-h-24 font-mono whitespace-pre-wrap">Ready. Click Import to begin...</div>
-    <button id="import-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition">Import All Equipment</button>
+    <div id="progress-bar-wrap" class="hidden w-full bg-gray-700 rounded-full h-4">
+        <div id="progress-bar" class="bg-indigo-500 h-4 rounded-full transition-all duration-200" style="width:0%"></div>
+    </div>
+    <p id="progress-label" class="text-sm text-indigo-300 hidden">0 / 0 units processed...</p>
+    <div id="status" class="bg-gray-800 border border-gray-700 rounded-xl p-4 text-sm text-gray-300 h-64 overflow-y-auto font-mono whitespace-pre-wrap">Ready. Click Import to begin...</div>
+    <button id="import-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition text-lg w-full">▶ Import All Equipment (100+ units)</button>
     <p class="text-xs text-gray-500">Safe to run multiple times — duplicate unit numbers will be skipped.</p>
 </div>
 
@@ -149,28 +153,50 @@ const equipment = [
 
 const statusEl = document.getElementById('status');
 
+function log(msg) {
+    statusEl.textContent += msg + '\n';
+    statusEl.scrollTop = statusEl.scrollHeight;
+}
+
 document.getElementById('import-btn').addEventListener('click', async () => {
     const btn = document.getElementById('import-btn');
+    const progressWrap = document.getElementById('progress-bar-wrap');
+    const progressBar = document.getElementById('progress-bar');
+    const progressLabel = document.getElementById('progress-label');
+
     btn.disabled = true;
-    btn.textContent = 'Importing...';
+    btn.textContent = '⏳ Starting import...';
     statusEl.textContent = '';
+    progressWrap.classList.remove('hidden');
+    progressLabel.classList.remove('hidden');
 
     try {
+        log('Connecting to Firebase...');
         const db = getDbInstance();
-        const settings = getAppSettings();
-        const companyId = settings.companyId;
-        if (!companyId) { statusEl.textContent = 'ERROR: No Company ID in settings. Go to Settings first.'; btn.disabled = false; btn.textContent = 'Import All Equipment'; return; }
+        if (!db) throw new Error('Firebase not initialized. Make sure you are logged in and Firebase is configured.');
 
-        // Get existing unit numbers to skip duplicates
+        const settings = getAppSettings();
+        const companyId = settings?.companyId;
+        if (!companyId) throw new Error('No Company ID found. Go to Settings and save your Company ID first.');
+
+        log(`Company ID: ${companyId}`);
+        log('Checking for existing equipment...');
+
         const existing = await getEquipmentList();
         const existingUnits = new Set(existing.map(e => e.unitNumber));
+        log(`Found ${existing.length} existing units. Starting import of ${equipment.length} units...\n`);
 
         let added = 0, skipped = 0;
         const col = collection(db, 'companies', companyId, 'equipment');
 
-        for (const eq of equipment) {
+        for (let i = 0; i < equipment.length; i++) {
+            const eq = equipment[i];
+            const pct = Math.round(((i + 1) / equipment.length) * 100);
+            progressBar.style.width = pct + '%';
+            progressLabel.textContent = `${i + 1} / ${equipment.length} units processed...`;
+
             if (existingUnits.has(eq.unitNumber)) {
-                statusEl.textContent += `SKIP  ${eq.unitNumber} — already exists\n`;
+                log(`SKIP  ${eq.unitNumber} — already exists`);
                 skipped++;
                 continue;
             }
@@ -180,16 +206,19 @@ document.getElementById('import-btn').addEventListener('click', async () => {
                 active: true,
                 createdAt: serverTimestamp()
             });
-            statusEl.textContent += `OK    ${eq.unitNumber} — ${eq.makeModel}\n`;
+            log(`✓ OK   ${eq.unitNumber} — ${eq.makeModel}`);
             added++;
         }
 
-        statusEl.textContent += `\n✓ Done. ${added} added, ${skipped} skipped.\n`;
-        btn.textContent = `✓ Import complete (${added} added)`;
+        log(`\n✅ DONE! ${added} units added, ${skipped} skipped.`);
+        btn.textContent = `✅ Import complete — ${added} units added`;
+        btn.classList.replace('bg-indigo-600', 'bg-green-600');
+        progressLabel.textContent = `Complete! ${added} added, ${skipped} skipped.`;
     } catch(e) {
-        statusEl.textContent += `\nERROR: ${e.message}`;
+        log(`\n❌ ERROR: ${e.message}`);
         btn.disabled = false;
-        btn.textContent = 'Retry Import';
+        btn.textContent = '▶ Retry Import';
+        btn.classList.remove('opacity-50');
     }
 });
 </script>
