@@ -50,7 +50,7 @@
 <script type="module">
     import { initFirebase } from './js/firebase-init.js';
     import { requireAuth } from './js/auth.js';
-    import { subscribeToActiveQueue, updateWorkOrder } from './js/db.js';
+    import { subscribeToActiveQueue, updateWorkOrder, deleteWorkOrder } from './js/db.js';
     import { renderNav } from './js/nav.js';
 
     initFirebase();
@@ -140,6 +140,8 @@
                             <option value="waiting_parts" ${wo.status==='waiting_parts'?'selected':''}>Waiting Parts</option>
                             <option value="completed" ${wo.status==='completed'?'selected':''}>Completed</option>
                         </select>
+                        <button onclick="event.stopPropagation(); deleteWO('${wo.id}', '${(wo.displayWorkOrderNumber||'').replace(/'/g,'')}')"
+                            class="text-xs text-red-500 hover:text-red-400 border border-red-800 hover:border-red-500 px-2 py-1 rounded-lg transition">🗑️ Delete</button>
                     </div>` : ''}
                 </div>
             </div>`;
@@ -150,6 +152,13 @@
         try {
             await updateWorkOrder(id, { status: newStatus });
         } catch(e) { alert('Error updating: ' + e.message); }
+    };
+
+    window.deleteWO = async function(id, label) {
+        if (!confirm(`Permanently delete work order ${label}? This cannot be undone.`)) return;
+        try {
+            await deleteWorkOrder(id);
+        } catch(e) { alert('Error deleting: ' + e.message); }
     };
 
     window.setFilter = function(filter) {

@@ -59,6 +59,12 @@ export async function updateWorkOrder(workOrderId, data) {
     await updateDoc(ref, { ...data, updatedAt: serverTimestamp() });
 }
 
+export async function deleteWorkOrder(workOrderId) {
+    const db = getDbInstance();
+    const companyId = getCompanyId();
+    await deleteDoc(doc(db, 'companies', companyId, 'workOrders', workOrderId));
+}
+
 export async function getWorkOrder(workOrderId) {
     const db = getDbInstance();
     const companyId = getCompanyId();
