@@ -1,0 +1,116 @@
+/* styles.css - Shared styles for Shop Work Order App */
+body { font-family: 'Inter', sans-serif; }
+
+/* Theme tokens (light default) */
+:root,
+:root.theme-light {
+    --app-bg: #f1f5f9;
+    --panel-bg: #ffffff;
+    --panel-muted-bg: #f8fafc;
+    --panel-deep-bg: #e2e8f0;
+    --text-main: #0f172a;
+    --text-muted: #475569;
+    --text-soft: #64748b;
+    --border-main: #cbd5e1;
+    --input-bg: #ffffff;
+    --input-text: #0f172a;
+}
+
+:root.theme-dark {
+    --app-bg: #111827;
+    --panel-bg: #1f2937;
+    --panel-muted-bg: #374151;
+    --panel-deep-bg: #4b5563;
+    --text-main: #f9fafb;
+    --text-muted: #9ca3af;
+    --text-soft: #6b7280;
+    --border-main: #374151;
+    --input-bg: #374151;
+    --input-text: #ffffff;
+}
+
+/* Map common Tailwind dark utility classes to theme tokens */
+:root:not(.theme-dark) .bg-gray-900,
+:root.theme-light .bg-gray-900 { background-color: var(--app-bg) !important; }
+
+:root:not(.theme-dark) .bg-gray-800,
+:root.theme-light .bg-gray-800 { background-color: var(--panel-bg) !important; }
+
+:root:not(.theme-dark) .bg-gray-700,
+:root.theme-light .bg-gray-700,
+:root:not(.theme-dark) .bg-gray-750,
+:root.theme-light .bg-gray-750 { background-color: var(--panel-muted-bg) !important; }
+
+:root:not(.theme-dark) .bg-gray-600,
+:root.theme-light .bg-gray-600 { background-color: var(--panel-deep-bg) !important; }
+
+:root:not(.theme-dark) .text-white,
+:root.theme-light .text-white,
+:root:not(.theme-dark) .text-gray-100,
+:root.theme-light .text-gray-100 { color: var(--text-main) !important; }
+
+:root:not(.theme-dark) .text-gray-300,
+:root.theme-light .text-gray-300,
+:root:not(.theme-dark) .text-gray-400,
+:root.theme-light .text-gray-400 { color: var(--text-muted) !important; }
+
+:root:not(.theme-dark) .text-gray-500,
+:root.theme-light .text-gray-500 { color: var(--text-soft) !important; }
+
+:root:not(.theme-dark) .border-gray-700,
+:root.theme-light .border-gray-700,
+:root:not(.theme-dark) .border-gray-600,
+:root.theme-light .border-gray-600,
+:root:not(.theme-dark) .border-gray-500,
+:root.theme-light .border-gray-500 { border-color: var(--border-main) !important; }
+
+:root:not(.theme-dark) input,
+:root:not(.theme-dark) textarea,
+:root:not(.theme-dark) select,
+:root.theme-light input,
+:root.theme-light textarea,
+:root.theme-light select {
+    color: var(--input-text);
+}
+
+:root:not(.theme-dark) ::placeholder,
+:root.theme-light ::placeholder {
+    color: #64748b;
+}
+
+textarea { resize: none; }
+input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+input[type="date"] { -webkit-appearance: none; appearance: none; min-height: 48px; max-height: 48px; box-sizing: border-box; }
+
+/* Priority badges */
+.badge-p1 { background: #dc2626; color: white; }
+.badge-p2 { background: #d97706; color: white; }
+.badge-p3 { background: #2563eb; color: white; }
+.badge-low { background: #6b7280; color: white; }
+
+/* Status badges */
+.badge-new { background: #7c3aed; color: white; }
+.badge-in_progress { background: #0891b2; color: white; }
+.badge-waiting_parts { background: #b45309; color: white; }
+.badge-completed { background: #16a34a; color: white; }
+
+/* Print styles */
+@media print {
+    .no-print { display: none !important; }
+    #main-nav { display: none !important; }
+    body { background-color: white !important; margin: 0 !important; padding: 0 !important; color: black !important; }
+    #print-preview { display: block !important; width: 100%; }
+    .print-text { white-space: pre-wrap; color: #000 !important; padding: 0; border: none; }
+    #report-photo-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    #report-photo-container img { width: 100%; height: auto; border: 1px solid #e5e7eb; border-radius: 4px; page-break-inside: avoid; }
+    #print-header, #print-info-grid { page-break-inside: avoid; }
+    .inspection-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px !important; }
+    .inspection-table th { border-bottom: 2px solid #000; text-align: left; padding: 4px; font-weight: bold; text-transform: uppercase; }
+    .inspection-table td { border-bottom: 1px solid #e5e7eb; padding: 4px; vertical-align: top; }
+    .inspection-category-row td { background-color: #f3f4f6; font-weight: bold; padding: 8px; }
+    .check-cell { width: 30px; text-align: center; font-family: monospace; font-size: 14px; }
+    h1 { font-size: 24px !important; }
+    h2 { font-size: 14px !important; margin-top: 20px !important; }
+    p, span, div { font-size: 12px !important; }
+    @page { margin: 0.5in; }
+}

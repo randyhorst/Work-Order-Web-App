@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Shop Work Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center p-4">
+<div class="w-full max-w-md">
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-extrabold text-white" id="company-name-display">Shop Work Orders</h1>
+        <p class="text-gray-400 mt-2 text-sm">Sign in to your account</p>
+    </div>
+
+    <div id="setup-warning" class="hidden mb-4 bg-yellow-900 border border-yellow-600 text-yellow-200 rounded-lg p-4 text-sm">
+        ⚠️ App not configured yet. <a href="settings.html" class="underline font-semibold">Go to Settings</a> to enter your Firebase credentials first.
+    </div>
+
+    <div class="bg-gray-800 rounded-xl shadow-2xl p-8 space-y-5">
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Email</label>
+            <input type="email" id="login-email" class="w-full rounded-lg bg-gray-700 border border-gray-600 text-white p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-1">Password</label>
+            <input type="password" id="login-password" class="w-full rounded-lg bg-gray-700 border border-gray-600 text-white p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div id="login-error" class="hidden text-red-400 text-sm"></div>
+        <button id="login-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition text-base">Sign In</button>
+        <div class="text-center text-sm text-gray-400 space-y-1">
+            <p>Don't have an account? <a href="register.html" class="text-indigo-400 hover:underline">Register with invite code</a></p>
+            <p class="text-xs text-gray-600">Admin? <a href="settings.html" class="text-gray-500 hover:underline">Configure app settings</a></p>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initFirebase } from './js/firebase-init.js';
+    import { loginUser, onAuthChange } from './js/auth.js';
+
+    const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+    document.getElementById('company-name-display').textContent = settings.companyName || 'Shop Work Orders';
+
+    const ok = initFirebase();
+    if (!ok) document.getElementById('setup-warning').classList.remove('hidden');
+
+    onAuthChange(user => { if (user) window.location.href = 'queue.html'; });
+
+    document.getElementById('login-btn').addEventListener('click', async () => {
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+        const errEl = document.getElementById('login-error');
+        errEl.classList.add('hidden');
+        if (!email || !password) { errEl.textContent = 'Please enter email and password.'; errEl.classList.remove('hidden'); return; }
+        try {
+            document.getElementById('login-btn').textContent = 'Signing in...';
+            await loginUser(email, password);
+        } catch (e) {
+            errEl.textContent = e.message.includes('invalid') || e.message.includes('password') ? 'Invalid email or password.' : e.message;
+            errEl.classList.remove('hidden');
+            document.getElementById('login-btn').textContent = 'Sign In';
+        }
+    });
+
+    document.getElementById('login-password').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('login-btn').click();
+    });
+</script>
+</body>
+</html>

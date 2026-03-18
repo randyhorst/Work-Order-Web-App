@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Work Order</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-900 text-gray-100">
+
+<nav id="main-nav" class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50 no-print"></nav>
+
+<div id="app" class="max-w-3xl mx-auto p-4 md:p-8">
+
+    <!-- FORM VIEW -->
+    <div id="form-view" class="no-print">
+        <header class="text-center mb-6 pt-4">
+            <h1 class="text-3xl font-extrabold text-white">Work Order Entry</h1>
+            <p id="wo-number-display" class="text-indigo-400 text-sm mt-1 font-mono hidden"></p>
+            <p id="edit-mode-badge" class="hidden mt-2 inline-block bg-yellow-600 text-white text-xs font-bold px-3 py-1 rounded-full">EDITING EXISTING WORK ORDER</p>
+        </header>
+
+        <div class="bg-gray-800 p-6 md:p-8 rounded-xl shadow-2xl space-y-6">
+
+            <!-- Priority + Status Row -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Priority</label>
+                    <select id="priority" class="block w-full rounded-lg border-gray-600 bg-gray-700 text-white border p-3" style="height:48px;">
+                        <option value="priority_1">⚡ Priority 1 — Urgent</option>
+                        <option value="priority_2">🔶 Priority 2 — Important</option>
+                        <option value="priority_3" selected>🔵 Priority 3 — Normal</option>
+                        <option value="low">⬇️ Low — When time allows</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Status</label>
+                    <select id="status" class="block w-full rounded-lg border-gray-600 bg-gray-700 text-white border p-3" style="height:48px;">
+                        <option value="new">New</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="waiting_parts">Waiting on Parts</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Unit + Employee -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="unit-number" class="block text-sm font-medium text-gray-300">Unit # / Description <span class="text-red-400">*</span></label>
+                    <input type="text" id="unit-number" class="mt-1 block w-full rounded-lg border-gray-600 shadow-sm p-3 bg-gray-700 text-white border" style="height:48px;" placeholder="e.g., SVL 75-3 or Transfer pump">
+                    <p id="unit-match-label" class="text-xs mt-1 hidden"></p>
+                </div>
+                <div>
+                    <label for="employee-name" class="block text-sm font-medium text-gray-300">Requested By</label>
+                    <input type="text" id="employee-name" class="mt-1 block w-full rounded-lg border-gray-600 shadow-sm p-3 bg-gray-700 text-white border" style="height:48px;" placeholder="Your Name">
+                </div>
+            </div>
+
+            <!-- Date + Hours + Km -->
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label for="date" class="block text-sm font-medium text-gray-300">Date</label>
+                    <input type="date" id="date" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-white border" style="height:48px; padding:0 12px;">
+                </div>
+                <div>
+                    <label for="hours" class="block text-sm font-medium text-gray-300">Hrs / Odometer</label>
+                    <input type="number" id="hours" class="mt-1 block w-full rounded-lg border-gray-600 shadow-sm p-3 bg-gray-700 text-white border" style="height:48px;" placeholder="0.0">
+                </div>
+                <div>
+                    <label for="kilometers" class="block text-sm font-medium text-gray-300">Km</label>
+                    <input type="number" id="kilometers" class="mt-1 block w-full rounded-lg border-gray-600 shadow-sm p-3 bg-gray-700 text-white border" style="height:48px;" placeholder="0">
+                </div>
+            </div>
+
+            <!-- Came In For -->
+            <div>
+                <label for="came-in-for" class="block text-lg font-semibold text-white mb-2 mt-2">What It Came In For...</label>
+                <textarea id="came-in-for" rows="5" class="mt-1 block w-full rounded-lg border-gray-600 shadow-sm p-4 bg-gray-700 text-white border" placeholder="Describe the issue or reason for this work order..."></textarea>
+            </div>
+
+            <!-- Got Done -->
+            <div>
+                <label for="got-done" class="block text-lg font-semibold text-white mb-2 mt-2">What Got Done...</label>
+                <textarea id="got-done" rows="8" class="mt-1 block w-full rounded-lg border-gray-600 shadow-sm p-4 bg-gray-700 text-white border" placeholder="Detail work performed..."></textarea>
+            </div>
+
+            <!-- Maintenance Checklist -->
+            <div class="border-t border-gray-700 pt-6 mt-4">
+                <div class="flex items-center mb-4">
+                    <input id="toggle-inspection" type="checkbox" class="w-6 h-6 text-indigo-600 rounded border-gray-500 bg-gray-700" onchange="toggleInspectionUI()">
+                    <label for="toggle-inspection" class="ml-3 block text-lg font-bold text-white">Add Maintenance Checklist?</label>
+                </div>
+                <div id="inspection-ui" class="hidden space-y-4 pl-2 border-l-2 border-indigo-600">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Equipment Type</label>
+                            <select id="equipment-type" class="block w-full rounded-lg border-gray-600 shadow-sm p-3 bg-gray-700 text-white border" style="height:48px;" onchange="renderActiveChecklist()">
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Interval</label>
+                            <select id="inspection-interval" class="block w-full rounded-lg border-gray-600 shadow-sm p-3 bg-gray-700 text-white border" style="height:48px;">
+                                <option value="Daily">Daily</option>
+                                <option value="Weekly">Weekly</option>
+                                <option value="50 Hr">50 Hr</option>
+                                <option value="250 Hr">250 Hr</option>
+                                <option value="500 Hr">500 Hr</option>
+                                <option value="Annual">Annual</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="checklist-container" class="space-y-2 mt-4"></div>
+                </div>
+            </div>
+
+            <!-- External Work Toggle -->
+            <div class="border-t border-gray-700 pt-6 mt-4">
+                <div class="flex items-center mb-4">
+                    <input id="toggle-external" type="checkbox" class="w-6 h-6 text-orange-600 rounded border-gray-500 bg-gray-700" onchange="toggleExternalUI()">
+                    <label for="toggle-external" class="ml-3 block text-lg font-bold text-white">External Work? <span class="text-sm font-normal text-gray-400">(work done outside the shop)</span></label>
+                </div>
+                <div id="external-ui" class="hidden space-y-4 pl-2 border-l-2 border-orange-500">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Vendor / Shop Name <span class="text-red-400">*</span></label>
+                            <input type="text" id="external-vendor" class="block w-full rounded-lg border-gray-600 shadow-sm p-3 bg-gray-700 text-white border" style="height:48px;" placeholder="e.g., Valley Alignment, Kubota Dealer">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">External Invoice / Report #</label>
+                            <input type="text" id="external-invoice" class="block w-full rounded-lg border-gray-600 shadow-sm p-3 bg-gray-700 text-white border" style="height:48px;" placeholder="Optional">
+                        </div>
+                    </div>
+                    <p class="text-xs text-orange-400">📎 Attach the scanned invoice or report below in the Documents section.</p>
+                </div>
+            </div>
+
+            <!-- Photos -->
+            <div class="border-t border-gray-700 pt-6">
+                <label class="block text-lg font-semibold text-white mb-2">Photos <span class="text-sm font-normal text-gray-400">(optional — multiple allowed)</span></label>
+                <input type="file" id="photo-upload" accept="image/*" multiple class="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700">
+                <div id="photo-preview-container" class="mt-4 grid grid-cols-2 gap-4"></div>
+            </div>
+
+            <!-- Documents / PDFs -->
+            <div class="border-t border-gray-700 pt-6">
+                <label class="block text-lg font-semibold text-white mb-1">Documents <span class="text-sm font-normal text-gray-400">(PDF, JPG, PNG — multiple allowed)</span></label>
+                <p class="text-xs text-gray-400 mb-3">Attach wiring diagrams, invoices, external reports, or scanned documents.</p>
+                <input type="file" id="doc-upload" accept=".pdf,image/jpeg,image/png" multiple class="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-500">
+                <div id="doc-list" class="mt-3 space-y-2"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="pt-4 grid grid-cols-2 gap-4">
+                <button onclick="clearForm()" class="flex justify-center py-3 px-4 border-2 border-red-600 rounded-lg shadow-lg text-base font-medium text-red-600 bg-white hover:bg-red-50 transition">
+                    Clear Form
+                </button>
+                <button onclick="saveDraft()" class="flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-base font-medium text-white bg-gray-600 hover:bg-gray-500 transition">
+                    💾 Save Draft
+                </button>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="generatePrintView()" class="flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition">
+                    🖨️ Preview / Print
+                </button>
+                <button onclick="completeAndSave()" class="flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-base font-medium text-white bg-green-600 hover:bg-green-700 transition">
+                    ✅ Mark Completed
+                </button>
+            </div>
+            <p id="save-status" class="text-center text-sm text-gray-400 h-5"></p>
+        </div>
+    </div>
+
+    <!-- PRINT PREVIEW VIEW -->
+    <div id="print-preview" class="hidden bg-white text-black p-8">
+        <div class="flex flex-col h-full">
+            <header id="print-header" class="border-b-2 border-black pb-4 mb-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h1 class="text-3xl font-bold uppercase text-black">Work Order</h1>
+                        <p id="report-wo-number" class="text-sm font-mono text-gray-600 mt-1"></p>
+                    </div>
+                    <div class="text-right">
+                        <div id="report-logo-container"></div>
+                        <p id="report-company-name" class="text-sm text-gray-600 font-semibold"></p>
+                    </div>
+                </div>
+            </header>
+
+            <div id="print-info-grid" class="grid grid-cols-3 gap-6 mb-8">
+                <div><span class="block text-xs font-bold uppercase text-gray-500">Unit # / Description</span><span id="report-unit" class="block text-xl font-bold text-black mt-1"></span></div>
+                <div><span class="block text-xs font-bold uppercase text-gray-500">Requested By</span><span id="report-employee" class="block text-lg text-black mt-1"></span></div>
+                <div><span class="block text-xs font-bold uppercase text-gray-500">Date</span><span id="report-date" class="block text-lg text-black mt-1"></span></div>
+                <div><span class="block text-xs font-bold uppercase text-gray-500">Hours / Odometer</span><span id="report-hours" class="block text-lg text-black mt-1"></span></div>
+                <div><span class="block text-xs font-bold uppercase text-gray-500">Kilometers</span><span id="report-kilometers" class="block text-lg text-black mt-1"></span></div>
+                <div><span class="block text-xs font-bold uppercase text-gray-500">Priority</span><span id="report-priority" class="block text-lg text-black mt-1"></span></div>
+            </div>
+
+            <section class="mb-8">
+                <h2 class="text-sm font-bold uppercase text-black border-b border-gray-300 pb-1 mb-3">What It Came In For</h2>
+                <div id="report-came-in-for" class="print-text text-sm leading-relaxed"></div>
+            </section>
+
+            <section class="mb-8">
+                <h2 class="text-sm font-bold uppercase text-black border-b border-gray-300 pb-1 mb-3">What Got Done</h2>
+                <div id="report-got-done" class="print-text text-sm leading-relaxed"></div>
+            </section>
+
+            <section id="report-inspection-section" class="hidden mb-8">
+                <div class="flex justify-between items-center border-b border-gray-300 pb-1 mb-3">
+                    <h2 class="text-sm font-bold uppercase text-black">Maintenance Checklist</h2>
+                    <span id="report-inspection-title" class="text-xs font-bold uppercase text-gray-500"></span>
+                </div>
+                <div id="report-inspection-container"></div>
+            </section>
+
+            <section id="report-photo-section" class="hidden mb-8">
+                <h2 class="text-sm font-bold uppercase text-black border-b border-gray-300 pb-1 mb-3">Attached Photos</h2>
+                <div id="report-photo-container" class="mt-4"></div>
+            </section>
+
+            <footer class="mt-auto pt-6 border-t border-gray-300 text-center">
+                <p class="text-xs text-gray-400">Generated via Shop Work Order System</p>
+            </footer>
+
+            <div class="no-print flex space-x-3 pt-8 border-t border-gray-200 mt-8">
+                <button onclick="window.print()" class="flex-1 py-3 px-4 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700">🖨️ Print / Save PDF</button>
+                <button onclick="showFormView()" class="flex-1 py-3 px-4 rounded-lg font-medium text-indigo-600 bg-white border-2 border-indigo-600 hover:bg-indigo-50">✏️ Edit Details</button>
+                <button onclick="window.location.href='queue.html'" class="flex-1 py-3 px-4 rounded-lg font-medium text-gray-600 bg-white border-2 border-gray-300 hover:bg-gray-50">← Back to Queue</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initFirebase } from './js/firebase-init.js';
+    import { requireAuth, getCurrentUserProfile } from './js/auth.js';
+    import { createWorkOrder, updateWorkOrder, getWorkOrder, matchEquipment, getCustomChecklists } from './js/db.js';
+    import { checklists as defaultChecklists, renderChecklist, extractChecklistData, buildChecklistTableHTML } from './js/checklists.js';
+    import { renderNav } from './js/nav.js';
+    import { uploadFileToDrive, deleteFileFromDrive, isDriveConfigured } from './js/drive-storage.js';
+
+    initFirebase();
+    renderNav('new-work-order.html');
+    const profile = await requireAuth();
+
+    const isViewer = profile?.role === 'viewer';
+
+    // Pre-fill employee name from profile
+    if (profile?.name) document.getElementById('employee-name').value = profile.name;
+
+    // Set today's date
+    document.getElementById('date').value = new Date().toISOString().split('T')[0];
+
+    // Load checklists (custom overrides built-in defaults)
+    let activeChecklists = { ...defaultChecklists };
+    try {
+        const custom = await getCustomChecklists();
+        if (custom && Object.keys(custom).length > 0) activeChecklists = custom;
+    } catch(e) {}
+
+    // Populate equipment type dropdown
+    function populateEquipmentTypes() {
+        const sel = document.getElementById('equipment-type');
+        sel.innerHTML = '';
+        Object.entries(activeChecklists).forEach(([key, val]) => {
+            const opt = document.createElement('option');
+            opt.value = key; opt.textContent = val.name;
+            sel.appendChild(opt);
+        });
+    }
+    populateEquipmentTypes();
+
+    // Attachment state
+    let savedPhotos = []; // { id, dataUrl, file } — pending local photos
+    let savedDocs = [];   // { id, name, file, dataUrl } — pending local documents
+    let currentWOId = null;
+    let matchedEquipmentId = null;
+
+    // Unique attachment IDs
+    function makeId() { return '_' + Math.random().toString(36).substr(2, 9); }
+
+    // Check if editing existing work order
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('id');
+    if (editId) {
+        loadExistingWorkOrder(editId);
+    }
+
+    async function loadExistingWorkOrder(id) {
+        try {
+            const wo = await getWorkOrder(id);
+            if (!wo) return;
+            currentWOId = id;
+            document.getElementById('edit-mode-badge').classList.remove('hidden');
+            document.getElementById('wo-number-display').textContent = wo.displayWorkOrderNumber || '';
+            document.getElementById('wo-number-display').classList.remove('hidden');
+            document.getElementById('unit-number').value = wo.unitOrDescription || '';
+            document.getElementById('employee-name').value = wo.requestedBy || '';
+            document.getElementById('date').value = wo.date || '';
+            document.getElementById('hours').value = wo.hours || '';
+            document.getElementById('kilometers').value = wo.kilometers || '';
+            document.getElementById('came-in-for').value = wo.cameInFor || '';
+            document.getElementById('got-done').value = wo.gotDone || '';
+            document.getElementById('priority').value = wo.priority || 'priority_3';
+            document.getElementById('status').value = wo.status || 'new';
+            matchedEquipmentId = wo.matchedEquipmentId || null;
+            if (wo.externalWork) {
+                document.getElementById('toggle-external').checked = true;
+                document.getElementById('external-ui').classList.remove('hidden');
+                document.getElementById('external-vendor').value = wo.externalVendor || '';
+                document.getElementById('external-invoice').value = wo.externalInvoice || '';
+            }
+            if (wo.checklistData) {
+                document.getElementById('toggle-inspection').checked = true;
+                document.getElementById('inspection-ui').classList.remove('hidden');
+                const typeKey = wo.checklistData.type;
+                const sel = document.getElementById('equipment-type');
+                if (sel) sel.value = typeKey;
+                document.getElementById('inspection-interval').value = wo.inspectionInterval || 'Annual';
+                renderChecklist(typeKey, document.getElementById('checklist-container'), wo.checklistData, activeChecklists);
+                // Hook auto-save on every checkbox/note change (all roles including viewer can tick checklist)
+                scheduleChecklistAutoSave();
+            }
+
+            // Viewers can see existing WOs but cannot edit fields or save
+            if (isViewer) {
+                document.getElementById('edit-mode-badge').textContent = 'VIEW ONLY';
+                document.getElementById('edit-mode-badge').classList.remove('bg-yellow-600');
+                document.getElementById('edit-mode-badge').classList.add('bg-gray-600');
+                // Lock all text/select/textarea inputs except checklist checkboxes
+                document.querySelectorAll('#form-view input:not([type=checkbox]), #form-view select, #form-view textarea').forEach(el => {
+                    el.disabled = true;
+                    el.style.opacity = '0.6';
+                });
+                // Hide save/complete/clear/print buttons — show back button instead
+                document.querySelectorAll('#form-view button').forEach(b => b.classList.add('hidden'));
+                const backBtn = document.createElement('button');
+                backBtn.className = 'w-full mt-4 py-3 px-4 rounded-lg font-medium text-gray-600 bg-white border-2 border-gray-300 hover:bg-gray-50';
+                backBtn.textContent = '← Back to Queue';
+                backBtn.onclick = () => window.location.href = 'queue.html';
+                document.getElementById('save-status').parentNode.appendChild(backBtn);
+            }
+        } catch(e) { console.error('Load error:', e); }
+    }
+
+    // ── Full-form auto-save ────────────────────────────────────
+    // Fires 1.5s after the last change to ANY field, photo, or doc.
+    // On a brand-new WO (no ID yet) it first creates the WO, then updates from then on.
+    // Auto-advances status from 'new' → 'in_progress' on first edit.
+
+    let autoSaveTimer = null;
+
+    function triggerAutoSave() {
+        if (isViewer) return;
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(doAutoSave, 1500);
+        // Show a subtle indicator that unsaved changes exist
+        setStatus('Unsaved changes…', 'text-yellow-400');
+    }
+
+    async function doAutoSave() {
+        try {
+            const unit = document.getElementById('unit-number').value.trim();
+            if (!unit) return; // need at least a unit before saving
+
+            // Auto-advance status new → in_progress on first real edit
+            const statusEl = document.getElementById('status');
+            if (statusEl.value === 'new' && currentWOId) {
+                statusEl.value = 'in_progress';
+            }
+
+            const data = collectFormData();
+
+            if (currentWOId) {
+                await updateWorkOrder(currentWOId, data);
+            } else {
+                // First save — create the WO so future edits just update it
+                const wo = await createWorkOrder(data, profile.uid);
+                currentWOId = wo.id;
+                document.getElementById('wo-number-display').textContent = wo.displayWorkOrderNumber;
+                document.getElementById('wo-number-display').classList.remove('hidden');
+                history.replaceState({}, '', `?id=${wo.id}`);
+                // Now that we have an ID, hook checklist auto-save
+                scheduleChecklistAutoSave();
+            }
+            setStatus('✓ Auto-saved', 'text-green-400');
+        } catch(e) {
+            setStatus('Auto-save error: ' + e.message, 'text-red-400');
+        }
+    }
+
+    // Wire up all main form fields to triggerAutoSave
+    function hookFormAutoSave() {
+        if (isViewer) return;
+        const fieldIds = [
+            'unit-number', 'employee-name', 'date', 'hours', 'kilometers',
+            'came-in-for', 'got-done', 'priority', 'status',
+            'toggle-inspection', 'equipment-type', 'inspection-interval',
+            'toggle-external', 'external-vendor', 'external-invoice'
+        ];
+        fieldIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('input', triggerAutoSave);
+            el.addEventListener('change', triggerAutoSave);
+        });
+    }
+    hookFormAutoSave();
+
+    // Hook checklist container auto-save (also called after checklist renders on existing WO)
+    function scheduleChecklistAutoSave() {
+        if (isViewer) return;
+        const container = document.getElementById('checklist-container');
+        if (!container) return;
+        // Remove first to avoid double-binding
+        container.removeEventListener('change', triggerAutoSave);
+        container.removeEventListener('input', triggerAutoSave);
+        container.addEventListener('change', triggerAutoSave);
+        container.addEventListener('input', triggerAutoSave);
+    }
+
+    // Unit matching
+    let matchTimeout;
+    document.getElementById('unit-number').addEventListener('input', () => {
+        clearTimeout(matchTimeout);
+        matchTimeout = setTimeout(async () => {
+            const val = document.getElementById('unit-number').value.trim();
+            const label = document.getElementById('unit-match-label');
+            if (!val) { label.classList.add('hidden'); matchedEquipmentId = null; return; }
+            const match = await matchEquipment(val);
+            if (match) {
+                matchedEquipmentId = match.id;
+                label.textContent = `✓ Matched: ${match.equipmentType || match.unitNumber}`;
+                label.className = 'text-xs mt-1 text-green-400';
+                label.classList.remove('hidden');
+            } else {
+                matchedEquipmentId = null;
+                label.textContent = '○ Not in equipment list — will save as custom job';
+                label.className = 'text-xs mt-1 text-yellow-500';
+                label.classList.remove('hidden');
+            }
+        }, 600);
+    });
+
+    // Photo handling — uploads to Google Drive if configured, otherwise stores as local dataUrl
+    document.getElementById('photo-upload').addEventListener('change', async function(e) {
+        const container = document.getElementById('photo-preview-container');
+        if (!e.target.files) return;
+        const files = Array.from(e.target.files);
+        this.value = '';
+        for (const file of files) {
+            const id = makeId();
+            // Show a placeholder while uploading
+            const wrapper = document.createElement('div');
+            wrapper.className = 'relative';
+            wrapper.dataset.photoId = id;
+            wrapper.innerHTML = `<div class="w-full h-24 rounded-lg border-2 border-gray-600 bg-gray-700 flex items-center justify-center text-gray-400 text-xs">Uploading…</div>`;
+            container.appendChild(wrapper);
+
+            try {
+                let imgSrc, driveMeta = null;
+                if (isDriveConfigured()) {
+                    driveMeta = await uploadFileToDrive(file);
+                    imgSrc = driveMeta.webContentLink;
+                } else {
+                    // Fallback: store as dataUrl (no Drive configured)
+                    imgSrc = await new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(file); });
+                }
+                savedPhotos.push({ id, dataUrl: imgSrc, file, driveMeta });
+                wrapper.innerHTML = `
+                    <img src="${imgSrc}" class="w-full h-auto rounded-lg border-2 border-gray-600 object-cover">
+                    <button type="button" onclick="removePhoto('${id}')" class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-7 h-7 text-sm font-bold leading-none flex items-center justify-center shadow">×</button>
+                `;
+                triggerAutoSave();
+            } catch(err) {
+                wrapper.innerHTML = `<div class="w-full h-24 rounded-lg border-2 border-red-600 bg-gray-700 flex items-center justify-center text-red-400 text-xs px-2 text-center">Upload failed: ${err.message}</div>`;
+            }
+        }
+    });
+
+    window.removePhoto = function(id) {
+        const photo = savedPhotos.find(p => p.id === id);
+        if (photo?.driveMeta?.id) deleteFileFromDrive(photo.driveMeta.id).catch(() => {});
+        savedPhotos = savedPhotos.filter(p => p.id !== id);
+        document.querySelector(`[data-photo-id="${id}"]`)?.remove();
+        triggerAutoSave();
+    };
+
+    // Document handling — uploads to Google Drive if configured, otherwise stores locally
+    document.getElementById('doc-upload').addEventListener('change', async function(e) {
+        const list = document.getElementById('doc-list');
+        if (!e.target.files) return;
+        const files = Array.from(e.target.files);
+        this.value = '';
+        for (const file of files) {
+            const id = makeId();
+            const icon = file.type === 'application/pdf' ? '📄' : '🖼️';
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-3 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2';
+            row.dataset.docId = id;
+            row.innerHTML = `<span class="text-lg">${icon}</span><span class="text-sm text-gray-400 flex-1">Uploading ${file.name}…</span>`;
+            list.appendChild(row);
+            try {
+                let driveMeta = null, dataUrl = null;
+                if (isDriveConfigured()) {
+                    driveMeta = await uploadFileToDrive(file);
+                } else {
+                    dataUrl = await new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(file); });
+                }
+                savedDocs.push({ id, name: file.name, file, dataUrl, driveMeta });
+                const viewLink = driveMeta ? driveMeta.webViewLink : null;
+                row.innerHTML = `
+                    <span class="text-lg">${icon}</span>
+                    ${viewLink ? `<a href="${viewLink}" target="_blank" class="text-sm text-indigo-300 hover:underline flex-1 truncate">${file.name}</a>` : `<span class="text-sm text-white flex-1 truncate">${file.name}</span>`}
+                    <span class="text-xs text-gray-400">${(file.size/1024).toFixed(0)} KB</span>
+                    <button type="button" onclick="removeDoc('${id}')" class="text-red-400 hover:text-red-300 font-bold text-lg px-1">×</button>
+                `;
+                triggerAutoSave();
+            } catch(err) {
+                row.innerHTML = `<span class="text-lg">⚠️</span><span class="text-sm text-red-400 flex-1">Upload failed: ${err.message}</span><button type="button" onclick="this.closest('[data-doc-id]').remove()" class="text-gray-500 px-2">×</button>`;
+            }
+        }
+    });
+
+    window.removeDoc = function(id) {
+        const doc = savedDocs.find(d => d.id === id);
+        if (doc?.driveMeta?.id) deleteFileFromDrive(doc.driveMeta.id).catch(() => {});
+        savedDocs = savedDocs.filter(d => d.id !== id);
+        document.querySelector(`[data-doc-id="${id}"]`)?.remove();
+        triggerAutoSave();
+    };
+
+    window.toggleExternalUI = function() {
+        const checked = document.getElementById('toggle-external').checked;
+        document.getElementById('external-ui').classList.toggle('hidden', !checked);
+    };
+
+    window.toggleInspectionUI = function() {
+        const checked = document.getElementById('toggle-inspection').checked;
+        const ui = document.getElementById('inspection-ui');
+        if (checked) { ui.classList.remove('hidden'); window.renderActiveChecklist(); }
+        else { ui.classList.add('hidden'); }
+    };
+
+    window.renderActiveChecklist = function(savedData = null) {
+        const type = document.getElementById('equipment-type').value;
+        renderChecklist(type, document.getElementById('checklist-container'), savedData, activeChecklists);
+    };
+
+    function collectFormData(status = null) {
+        const getVal = id => document.getElementById(id)?.value?.trim() || '';
+        const isInspection = document.getElementById('toggle-inspection').checked;
+        const typeKey = document.getElementById('equipment-type').value;
+        let checklistData = null;
+        if (isInspection) checklistData = extractChecklistData(typeKey, document.getElementById('checklist-container'), activeChecklists);
+        const isExternal = document.getElementById('toggle-external').checked;
+        const externalVendor = isExternal ? getVal('external-vendor') : null;
+        const externalInvoice = isExternal ? getVal('external-invoice') : null;
+        const priorityLabels = { priority_1: 'Priority 1 — Urgent', priority_2: 'Priority 2 — Important', priority_3: 'Priority 3 — Normal', low: 'Low' };
+        // Pending attachment metadata (URLs filled in on actual Firebase save)
+        const pendingPhotos = savedPhotos.map(p => ({ id: p.id, name: p.file.name, type: 'photo', contentType: p.file.type, size: p.file.size }));
+        const pendingDocs = savedDocs.map(d => ({ id: d.id, name: d.file.name, type: 'pdf', contentType: d.file.type, size: d.file.size }));
+        return {
+            unitOrDescription: getVal('unit-number'),
+            requestedBy: getVal('employee-name'),
+            date: getVal('date'),
+            hours: getVal('hours'),
+            kilometers: getVal('kilometers'),
+            cameInFor: getVal('came-in-for'),
+            gotDone: getVal('got-done'),
+            priority: getVal('priority') || 'priority_3',
+            status: status || getVal('status') || 'new',
+            isInspection,
+            inspectionInterval: isInspection ? getVal('inspection-interval') : null,
+            inspectionCategory: isInspection ? getVal('inspection-interval') : null,
+            checklistData,
+            matchedEquipmentId,
+            isEquipmentMatch: !!matchedEquipmentId,
+            priorityLabel: priorityLabels[getVal('priority') || 'priority_3'],
+            externalWork: isExternal,
+            externalVendor,
+            externalInvoice,
+            attachments: [...pendingPhotos, ...pendingDocs]
+        };
+    }
+
+    function setStatus(msg, color = 'text-gray-400') {
+        const el = document.getElementById('save-status');
+        el.textContent = msg; el.className = `text-center text-sm h-5 ${color}`;
+        if (msg) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
+    }
+
+    window.saveDraft = async function() {
+        const unit = document.getElementById('unit-number').value.trim();
+        if (!unit) { alert('Please enter a Unit # or description.'); return; }
+        const isExternal = document.getElementById('toggle-external').checked;
+        if (isExternal && !document.getElementById('external-vendor').value.trim()) {
+            alert('Vendor / Shop Name is required for external work orders.'); return;
+        }
+        setStatus('Saving...', 'text-gray-400');
+        try {
+            const data = collectFormData('new');
+            if (currentWOId) {
+                await updateWorkOrder(currentWOId, data);
+                setStatus('✓ Draft updated', 'text-green-400');
+            } else {
+                const wo = await createWorkOrder(data, profile.uid);
+                currentWOId = wo.id;
+                document.getElementById('wo-number-display').textContent = wo.displayWorkOrderNumber;
+                document.getElementById('wo-number-display').classList.remove('hidden');
+                history.replaceState({}, '', `?id=${wo.id}`);
+                setStatus('✓ Draft saved as ' + wo.displayWorkOrderNumber, 'text-green-400');
+            }
+        } catch(e) { setStatus('Error saving: ' + e.message, 'text-red-400'); }
+    };
+
+    window.completeAndSave = async function() {
+        const unit = document.getElementById('unit-number').value.trim();
+        if (!unit) { alert('Please enter a Unit # or description.'); return; }
+        const isExternal = document.getElementById('toggle-external').checked;
+        if (isExternal && !document.getElementById('external-vendor').value.trim()) {
+            alert('Vendor / Shop Name is required for external work orders.'); return;
+        }
+        if (!confirm('Mark this work order as completed?')) return;
+        setStatus('Completing...', 'text-gray-400');
+        try {
+            const data = collectFormData('completed');
+            data.completedAt = new Date().toISOString();
+            if (currentWOId) {
+                await updateWorkOrder(currentWOId, data);
+                setStatus('✓ Marked completed', 'text-green-400');
+            } else {
+                const wo = await createWorkOrder(data, profile.uid);
+                currentWOId = wo.id;
+                document.getElementById('wo-number-display').textContent = wo.displayWorkOrderNumber;
+                document.getElementById('wo-number-display').classList.remove('hidden');
+                history.replaceState({}, '', `?id=${wo.id}`);
+                setStatus('✓ Completed — ' + wo.displayWorkOrderNumber, 'text-green-400');
+            }
+            document.getElementById('status').value = 'completed';
+            setTimeout(() => window.location.href = 'queue.html', 1500);
+        } catch(e) { setStatus('Error: ' + e.message, 'text-red-400'); }
+    };
+
+    window.generatePrintView = function() {
+        const getVal = id => document.getElementById(id)?.value?.trim() || '';
+        const unit = getVal('unit-number');
+        if (!unit) { alert('Please enter a Unit # or description.'); return; }
+        const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+        const priorityLabels = { priority_1: 'Priority 1 — Urgent', priority_2: 'Priority 2 — Important', priority_3: 'Priority 3 — Normal', low: 'Low' };
+
+        document.getElementById('report-wo-number').textContent = document.getElementById('wo-number-display').textContent || 'Draft';
+        document.getElementById('report-company-name').textContent = settings.companyName || '';
+        document.getElementById('report-unit').textContent = unit;
+        document.getElementById('report-employee').textContent = getVal('employee-name') || 'N/A';
+        document.getElementById('report-date').textContent = getVal('date');
+        document.getElementById('report-hours').textContent = getVal('hours') || '—';
+        document.getElementById('report-kilometers').textContent = getVal('kilometers') || '—';
+        document.getElementById('report-priority').textContent = priorityLabels[getVal('priority')] || '';
+        document.getElementById('report-came-in-for').textContent = getVal('came-in-for') || 'No entry.';
+        document.getElementById('report-got-done').textContent = getVal('got-done') || 'No work recorded.';
+
+        const logoUrl = settings.logoUrl;
+        const logoCont = document.getElementById('report-logo-container');
+        logoCont.innerHTML = logoUrl ? `<img src="${logoUrl}" style="max-height:60px; max-width:160px;" class="ml-auto mb-1">` : '';
+
+        const isInspection = document.getElementById('toggle-inspection').checked;
+        const inspSection = document.getElementById('report-inspection-section');
+        if (isInspection) {
+            const typeKey = document.getElementById('equipment-type').value;
+            const checklistData = extractChecklistData(typeKey, document.getElementById('checklist-container'), activeChecklists);
+            const checklistName = activeChecklists[typeKey]?.name || typeKey;
+            document.getElementById('report-inspection-title').textContent = `${checklistName} (${getVal('inspection-interval')})`;
+            document.getElementById('report-inspection-container').innerHTML = buildChecklistTableHTML(checklistData);
+            inspSection.classList.remove('hidden');
+        } else { inspSection.classList.add('hidden'); }
+
+        const photos = document.getElementById('photo-preview-container').querySelectorAll('img');
+        const photoSection = document.getElementById('report-photo-section');
+        const photoCont = document.getElementById('report-photo-container');
+        photoCont.innerHTML = '';
+        if (photos.length > 0) {
+            photoSection.classList.remove('hidden');
+            photos.forEach(img => { const i = document.createElement('img'); i.src = img.src; photoCont.appendChild(i); });
+        } else { photoSection.classList.add('hidden'); }
+
+        document.getElementById('form-view').classList.add('hidden');
+        document.getElementById('print-preview').classList.remove('hidden');
+    };
+
+    window.showFormView = function() {
+        document.getElementById('print-preview').classList.add('hidden');
+        document.getElementById('form-view').classList.remove('hidden');
+    };
+
+    window.clearForm = function() {
+        if (!confirm('Clear all form data?')) return;
+        currentWOId = null; matchedEquipmentId = null; savedPhotos = [];
+        document.getElementById('unit-number').value = '';
+        document.getElementById('employee-name').value = profile?.name || '';
+        document.getElementById('date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('hours').value = '';
+        document.getElementById('kilometers').value = '';
+        document.getElementById('came-in-for').value = '';
+        document.getElementById('got-done').value = '';
+        document.getElementById('priority').value = 'priority_3';
+        document.getElementById('status').value = 'new';
+        document.getElementById('toggle-inspection').checked = false;
+        document.getElementById('inspection-ui').classList.add('hidden');
+        document.getElementById('checklist-container').innerHTML = '';
+        savedPhotos = []; savedDocs = [];
+        document.getElementById('photo-upload').value = '';
+        document.getElementById('doc-upload').value = '';
+        document.getElementById('photo-preview-container').innerHTML = '';
+        document.getElementById('doc-list').innerHTML = '';
+        document.getElementById('toggle-external').checked = false;
+        document.getElementById('external-ui').classList.add('hidden');
+        document.getElementById('external-vendor').value = '';
+        document.getElementById('external-invoice').value = '';
+        document.getElementById('wo-number-display').classList.add('hidden');
+        document.getElementById('wo-number-display').textContent = '';
+        document.getElementById('edit-mode-badge').classList.add('hidden');
+        document.getElementById('unit-match-label').classList.add('hidden');
+        history.replaceState({}, '', 'new-work-order.html');
+    };
+</script>
+</body>
+</html>

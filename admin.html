@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Shop Work Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+<nav id="main-nav" class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50"></nav>
+
+<div class="max-w-5xl mx-auto p-4 md:p-6 space-y-8">
+    <h1 class="text-2xl font-extrabold text-white">Admin Dashboard</h1>
+
+    <!-- Tab Navigation -->
+    <div class="flex gap-2 flex-wrap border-b border-gray-700 pb-2">
+        <button onclick="showTab('users')" data-tab="users" class="tab-btn active px-4 py-2 rounded-t-lg text-sm font-medium text-white bg-gray-700 transition">👤 Users</button>
+        <button onclick="showTab('equipment')" data-tab="equipment" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">🔧 Equipment</button>
+        <button onclick="showTab('checklists')" data-tab="checklists" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">✅ Checklists</button>
+        <button onclick="showTab('export')" data-tab="export" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">📤 Export</button>
+    </div>
+
+    <!-- USERS TAB -->
+    <div id="tab-users" class="tab-content space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold text-white">Users</h2>
+            <button onclick="generateInvite()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">+ Generate Invite Code</button>
+        </div>
+        <div id="invite-result" class="hidden bg-gray-800 border border-indigo-500 rounded-xl p-4 text-center">
+            <p class="text-sm text-gray-400 mb-2">Share this code with your worker (expires in 7 days):</p>
+            <p id="invite-code-display" class="text-3xl font-mono font-bold text-indigo-300 tracking-widest"></p>
+            <p class="text-xs text-gray-500 mt-2">Worker goes to <strong>register.html</strong> and enters this code to create their account.</p>
+        </div>
+        <div id="users-list" class="space-y-2">
+            <div class="text-gray-500 text-sm">Loading users...</div>
+        </div>
+    </div>
+
+    <!-- EQUIPMENT TAB -->
+    <div id="tab-equipment" class="tab-content hidden space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold text-white">Equipment List</h2>
+            <button onclick="showAddEquipment()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Unit</button>
+        </div>
+
+        <!-- Add Equipment Form -->
+        <div id="add-equipment-form" class="hidden bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-3">
+            <h3 class="text-sm font-semibold text-gray-300">Add New Equipment</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <input type="text" id="eq-unit" placeholder="Unit # (e.g., SVL 75-3)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="text" id="eq-type" placeholder="Type (e.g., Kubota SVL)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="text" id="eq-make" placeholder="Make / Model (optional)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="text" id="eq-reset" placeholder="Annual reset date (e.g., Nov 1)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div class="flex gap-2">
+                <button onclick="saveEquipment()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Save</button>
+                <button onclick="document.getElementById('add-equipment-form').classList.add('hidden')" class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2 rounded-lg text-sm transition">Cancel</button>
+            </div>
+        </div>
+
+        <div id="equipment-list-admin" class="space-y-2">
+            <div class="text-gray-500 text-sm">Loading equipment...</div>
+        </div>
+    </div>
+
+    <!-- CHECKLISTS TAB -->
+    <div id="tab-checklists" class="tab-content hidden space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+            <div>
+                <h2 class="text-lg font-bold text-white">Checklist Editor</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Edit existing checklists or add new equipment types. Custom checklists override the built-in defaults for your company.</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="addNewChecklistType()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">+ New Type</button>
+                <button onclick="saveAllChecklists()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">💾 Save All</button>
+            </div>
+        </div>
+        <div id="checklist-save-status" class="text-sm h-5 text-center"></div>
+        <div id="checklist-editor-container" class="space-y-6">
+            <div class="text-gray-500 text-sm">Loading checklists...</div>
+        </div>
+    </div>
+
+    <!-- EXPORT TAB -->
+    <div id="tab-export" class="tab-content hidden space-y-4">
+        <h2 class="text-lg font-bold text-white">Export Work Orders</h2>
+        <p class="text-sm text-gray-400">Filter completed work orders and export a package to Google Drive or download a CSV summary.</p>
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Date From</label>
+                    <input type="date" id="export-date-from" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Date To</label>
+                    <input type="date" id="export-date-to" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-3 items-center">
+                <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" id="export-annual" class="w-4 h-4"> Annual inspections only
+                </label>
+                <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                    <input type="checkbox" id="export-completed" checked class="w-4 h-4"> Completed only
+                </label>
+            </div>
+            <div id="export-preview" class="text-sm text-gray-500"></div>
+            <div class="flex flex-wrap gap-3">
+                <button onclick="previewExport()" class="bg-gray-600 hover:bg-gray-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Preview Results</button>
+                <button onclick="downloadCSV()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">📥 Download CSV</button>
+                <a href="settings.html" class="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-5 py-2.5 rounded-lg text-sm font-semibold transition">⚙️ Configure Drive Export</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initFirebase } from './js/firebase-init.js';
+    import { requireAuth } from './js/auth.js';
+    import { getUsers, updateUser, addEquipment, getEquipmentList, deleteEquipment,
+             createInviteCode, getCustomChecklists, saveChecklist, deleteChecklist,
+             searchWorkOrders } from './js/db.js';
+    import { checklists as defaultChecklists } from './js/checklists.js';
+    import { renderNav } from './js/nav.js';
+
+    initFirebase();
+    renderNav('admin.html');
+    const profile = await requireAuth(['admin']);
+
+    // Deep copy for editing
+    let editableChecklists = {};
+
+    window.showTab = function(tab) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('text-white', btn.dataset.tab === tab);
+            btn.classList.toggle('bg-gray-700', btn.dataset.tab === tab);
+            btn.classList.toggle('text-gray-400', btn.dataset.tab !== tab);
+        });
+        document.getElementById('tab-' + tab).classList.remove('hidden');
+        if (tab === 'users') loadUsers();
+        if (tab === 'equipment') loadEquipment();
+        if (tab === 'checklists') loadChecklistEditor();
+    };
+
+    // ── USERS ──────────────────────────────────────────────────
+
+    async function loadUsers() {
+        const container = document.getElementById('users-list');
+        try {
+            const users = await getUsers();
+            if (users.length === 0) { container.innerHTML = '<p class="text-gray-500 text-sm">No users found.</p>'; return; }
+            container.innerHTML = users.map(u => `
+                <div class="flex items-center justify-between bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
+                    <div>
+                        <p class="text-white font-medium text-sm">${u.name || u.email}</p>
+                        <p class="text-gray-400 text-xs">${u.email}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select onchange="changeRole('${u.id}', this.value)" class="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+                            <option value="worker" ${u.role==='worker'?'selected':''}>Worker</option>
+                            <option value="viewer" ${u.role==='viewer'?'selected':''}>Viewer</option>
+                            <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+                        </select>
+                    </div>
+                </div>`).join('');
+        } catch(e) { container.innerHTML = `<p class="text-red-400 text-sm">Error: ${e.message}</p>`; }
+    }
+
+    window.changeRole = async function(userId, role) {
+        try { await updateUser(userId, { role }); } catch(e) { alert('Error: ' + e.message); }
+    };
+
+    window.generateInvite = async function() {
+        try {
+            const code = await createInviteCode('worker', profile.uid);
+            document.getElementById('invite-code-display').textContent = code;
+            document.getElementById('invite-result').classList.remove('hidden');
+        } catch(e) { alert('Error: ' + e.message); }
+    };
+
+    // ── EQUIPMENT ──────────────────────────────────────────────
+
+    async function loadEquipment() {
+        const container = document.getElementById('equipment-list-admin');
+        try {
+            const list = await getEquipmentList();
+            if (list.length === 0) { container.innerHTML = '<p class="text-gray-500 text-sm">No equipment added yet.</p>'; return; }
+            container.innerHTML = list.map(eq => `
+                <div class="flex items-center justify-between bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
+                    <div>
+                        <p class="text-white font-semibold text-sm">${eq.unitNumber}</p>
+                        <p class="text-gray-400 text-xs">${eq.equipmentType || '—'} ${eq.makeModel ? '· ' + eq.makeModel : ''}</p>
+                        ${eq.inspectionResetMonthDay ? `<p class="text-gray-500 text-xs">Annual reset: ${eq.inspectionResetMonthDay}</p>` : ''}
+                    </div>
+                    <button onclick="removeEquipment('${eq.id}')" class="text-red-500 hover:text-red-400 text-xs border border-red-800 hover:border-red-500 px-3 py-1.5 rounded-lg transition">Remove</button>
+                </div>`).join('');
+        } catch(e) { container.innerHTML = `<p class="text-red-400 text-sm">Error: ${e.message}</p>`; }
+    }
+
+    window.showAddEquipment = function() {
+        document.getElementById('add-equipment-form').classList.toggle('hidden');
+    };
+
+    window.saveEquipment = async function() {
+        const unit = document.getElementById('eq-unit').value.trim();
+        const type = document.getElementById('eq-type').value.trim();
+        if (!unit || !type) { alert('Unit # and Type are required.'); return; }
+        await addEquipment({ unitNumber: unit, equipmentType: type, makeModel: document.getElementById('eq-make').value.trim(), inspectionResetMonthDay: document.getElementById('eq-reset').value.trim(), active: true });
+        document.getElementById('eq-unit').value = '';
+        document.getElementById('eq-type').value = '';
+        document.getElementById('eq-make').value = '';
+        document.getElementById('eq-reset').value = '';
+        document.getElementById('add-equipment-form').classList.add('hidden');
+        loadEquipment();
+    };
+
+    window.removeEquipment = async function(id) {
+        if (!confirm('Remove this equipment from the list?')) return;
+        await deleteEquipment(id);
+        loadEquipment();
+    };
+
+    // ── CHECKLISTS ─────────────────────────────────────────────
+
+    async function loadChecklistEditor() {
+        const container = document.getElementById('checklist-editor-container');
+        container.innerHTML = '<div class="text-gray-500 text-sm">Loading...</div>';
+        try {
+            const custom = await getCustomChecklists();
+            editableChecklists = custom ? JSON.parse(JSON.stringify(custom)) : JSON.parse(JSON.stringify(defaultChecklists));
+            renderChecklistEditor();
+        } catch(e) {
+            editableChecklists = JSON.parse(JSON.stringify(defaultChecklists));
+            renderChecklistEditor();
+        }
+    }
+
+    function renderChecklistEditor() {
+        const container = document.getElementById('checklist-editor-container');
+        container.innerHTML = '';
+        Object.entries(editableChecklists).forEach(([key, cl]) => {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-800 border border-gray-700 rounded-xl p-5 space-y-4';
+            div.id = `cl-block-${key}`;
+            div.innerHTML = `
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 flex-1">
+                        <input type="text" value="${cl.name}" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm font-semibold flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Equipment type name"
+                            onchange="editableChecklists['${key}'].name = this.value">
+                        <span class="text-xs text-gray-500 font-mono">key: ${key}</span>
+                    </div>
+                    <button onclick="deleteChecklistType('${key}')" class="text-red-500 hover:text-red-400 text-xs border border-red-800 px-3 py-1.5 rounded-lg transition">Delete Type</button>
+                </div>
+                <div id="sections-${key}" class="space-y-3"></div>
+                <button onclick="addSection('${key}')" class="text-xs bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-3 py-2 rounded-lg transition">+ Add Section</button>
+            `;
+            container.appendChild(div);
+            renderSections(key);
+        });
+    }
+
+    function renderSections(key) {
+        const container = document.getElementById(`sections-${key}`);
+        if (!container) return;
+        container.innerHTML = '';
+        editableChecklists[key].sections.forEach((section, secIdx) => {
+            const secDiv = document.createElement('div');
+            secDiv.className = 'bg-gray-750 border border-gray-600 rounded-lg p-3 space-y-2';
+            secDiv.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <input type="text" value="${section.title}" class="flex-1 bg-gray-600 border border-gray-500 rounded px-2 py-1.5 text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Section title"
+                        onchange="editableChecklists['${key}'].sections[${secIdx}].title = this.value">
+                    <button onclick="deleteSection('${key}', ${secIdx})" class="text-red-500 hover:text-red-400 text-xs px-2 py-1 rounded border border-red-800 transition">✕</button>
+                </div>
+                <div id="items-${key}-${secIdx}" class="space-y-1 pl-2"></div>
+                <button onclick="addItem('${key}', ${secIdx})" class="text-xs text-indigo-400 hover:text-indigo-300 transition">+ Add Item</button>
+            `;
+            container.appendChild(secDiv);
+            renderItems(key, secIdx);
+        });
+    }
+
+    function renderItems(key, secIdx) {
+        const container = document.getElementById(`items-${key}-${secIdx}`);
+        if (!container) return;
+        container.innerHTML = '';
+        editableChecklists[key].sections[secIdx].items.forEach((item, itemIdx) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2';
+            row.innerHTML = `
+                <span class="text-gray-500 text-xs">·</span>
+                <input type="text" value="${item}" class="flex-1 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500" placeholder="Checklist item"
+                    onchange="editableChecklists['${key}'].sections[${secIdx}].items[${itemIdx}] = this.value">
+                <button onclick="deleteItem('${key}', ${secIdx}, ${itemIdx})" class="text-red-500 hover:text-red-400 text-xs px-1">✕</button>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    window.addSection = function(key) {
+        editableChecklists[key].sections.push({ title: 'New Section', items: [] });
+        renderChecklistEditor();
+    };
+
+    window.deleteSection = function(key, secIdx) {
+        if (!confirm('Delete this section and all its items?')) return;
+        editableChecklists[key].sections.splice(secIdx, 1);
+        renderChecklistEditor();
+    };
+
+    window.addItem = function(key, secIdx) {
+        editableChecklists[key].sections[secIdx].items.push('New Item');
+        renderChecklistEditor();
+    };
+
+    window.deleteItem = function(key, secIdx, itemIdx) {
+        editableChecklists[key].sections[secIdx].items.splice(itemIdx, 1);
+        renderChecklistEditor();
+    };
+
+    window.deleteChecklistType = function(key) {
+        if (!confirm(`Delete the "${editableChecklists[key].name}" checklist type entirely?`)) return;
+        delete editableChecklists[key];
+        renderChecklistEditor();
+    };
+
+    window.addNewChecklistType = function() {
+        const key = 'custom_' + Date.now();
+        editableChecklists[key] = { name: 'New Equipment Type', sections: [{ title: 'General', items: ['Item 1'] }] };
+        renderChecklistEditor();
+        document.getElementById(`cl-block-${key}`)?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.saveAllChecklists = async function() {
+        const statusEl = document.getElementById('checklist-save-status');
+        statusEl.textContent = 'Saving...';
+        statusEl.className = 'text-sm h-5 text-center text-gray-400';
+        try {
+            for (const [key, data] of Object.entries(editableChecklists)) {
+                await saveChecklist(key, data);
+            }
+            statusEl.textContent = '✓ Checklists saved! Workers will see updates on next load.';
+            statusEl.className = 'text-sm h-5 text-center text-green-400';
+            setTimeout(() => { statusEl.textContent = ''; }, 4000);
+        } catch(e) {
+            statusEl.textContent = 'Error: ' + e.message;
+            statusEl.className = 'text-sm h-5 text-center text-red-400';
+        }
+    };
+
+    // ── EXPORT ─────────────────────────────────────────────────
+
+    let exportResults = [];
+
+    window.previewExport = async function() {
+        const dateFrom = document.getElementById('export-date-from').value;
+        const dateTo = document.getElementById('export-date-to').value;
+        const isAnnualInspection = document.getElementById('export-annual').checked;
+        const completedOnly = document.getElementById('export-completed').checked;
+        const status = completedOnly ? 'completed' : 'all';
+        const el = document.getElementById('export-preview');
+        el.textContent = 'Searching...';
+        try {
+            exportResults = await searchWorkOrders({ dateFrom, dateTo, isAnnualInspection, status });
+            el.textContent = `${exportResults.length} work order${exportResults.length !== 1 ? 's' : ''} match your filter.`;
+        } catch(e) { el.textContent = 'Error: ' + e.message; }
+    };
+
+    window.downloadCSV = function() {
+        if (exportResults.length === 0) { alert('Run "Preview Results" first.'); return; }
+        const headers = ['WO Number', 'Unit/Description', 'Status', 'Priority', 'Date', 'Employee', 'What It Came In For', 'What Got Done', 'Inspection', 'PDF Link'];
+        const rows = exportResults.map(wo => [
+            wo.displayWorkOrderNumber || '',
+            wo.unitOrDescription || '',
+            wo.status || '',
+            wo.priority || '',
+            wo.date || (wo.createdAt?.toDate ? wo.createdAt.toDate().toLocaleDateString() : ''),
+            wo.requestedBy || '',
+            (wo.cameInFor || '').replace(/,/g, ';').replace(/\n/g, ' '),
+            (wo.gotDone || '').replace(/,/g, ';').replace(/\n/g, ' '),
+            wo.isInspection ? wo.inspectionCategory || 'Yes' : 'No',
+            wo.pdfDriveLink || ''
+        ]);
+        const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url;
+        a.download = `work-orders-export-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click(); URL.revokeObjectURL(url);
+    };
+
+    // Init first tab
+    showTab('users');
+
+    // Hash routing
+    if (location.hash === '#equipment') showTab('equipment');
+    if (location.hash === '#checklists') showTab('checklists');
+</script>
+</body>
+</html>

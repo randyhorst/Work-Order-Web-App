@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Preview - Shop Work Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .badge-p1 { background:#dc2626;color:white; }
+        .badge-p2 { background:#d97706;color:white; }
+        .badge-p3 { background:#2563eb;color:white; }
+        .badge-low { background:#6b7280;color:white; }
+        .badge-new { background:#7c3aed;color:white; }
+        .badge-in_progress { background:#0891b2;color:white; }
+        .badge-waiting_parts { background:#b45309;color:white; }
+        .badge-completed { background:#16a34a;color:white; }
+    </style>
+    <script>
+        // Apply theme immediately to avoid flash
+        (function() {
+            const t = localStorage.getItem('shopAppTheme') || 'light';
+            document.documentElement.classList.add(t === 'dark' ? 'theme-dark' : 'theme-light');
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+
+<!-- NAV -->
+<nav class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50">
+    <div class="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between">
+        <span class="text-white font-bold text-sm">Pineview Vegetation Management</span>
+        <div class="flex items-center gap-1">
+            <a href="#queue" onclick="showView('queue')" class="nav-link flex flex-col items-center px-3 py-1 rounded-md text-xs font-medium text-white bg-indigo-700 transition">
+                <span class="text-lg leading-none">📋</span><span class="mt-0.5">Queue</span>
+            </a>
+            <a href="#form" onclick="showView('form')" class="nav-link flex flex-col items-center px-3 py-1 rounded-md text-xs font-medium text-gray-300 hover:bg-gray-700 transition">
+                <span class="text-lg leading-none">➕</span><span class="mt-0.5">New Order</span>
+            </a>
+            <a href="#history" onclick="showView('history')" class="nav-link flex flex-col items-center px-3 py-1 rounded-md text-xs font-medium text-gray-300 hover:bg-gray-700 transition">
+                <span class="text-lg leading-none">🔍</span><span class="mt-0.5">History</span>
+            </a>
+            <a href="#dashboard" onclick="showView('dashboard')" class="nav-link flex flex-col items-center px-3 py-1 rounded-md text-xs font-medium text-gray-300 hover:bg-gray-700 transition">
+                <span class="text-lg leading-none">🔧</span><span class="mt-0.5">Equipment</span>
+            </a>
+            <a href="#admin" onclick="showView('admin')" class="nav-link flex flex-col items-center px-3 py-1 rounded-md text-xs font-medium text-gray-300 hover:bg-gray-700 transition">
+                <span class="text-lg leading-none">⚙️</span><span class="mt-0.5">Admin</span>
+            </a>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="togglePreviewTheme()" id="theme-btn" class="text-xs text-gray-400 hover:text-indigo-400 transition px-2 py-1 rounded border border-gray-600 hover:border-indigo-500" title="Toggle light/dark mode">🌓</button>
+            <span class="text-gray-400 text-xs hidden sm:block">Randy (Admin)</span>
+            <span class="text-xs text-yellow-400 border border-yellow-600 px-2 py-1 rounded">DEMO</span>
+        </div>
+    </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- QUEUE VIEW -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="view-queue" class="max-w-5xl mx-auto p-4 md:p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-extrabold text-white">Active Queue</h1>
+            <p class="text-gray-400 text-sm mt-1">Real-time shop work orders</p>
+        </div>
+        <button onclick="showView('form')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm flex items-center gap-2">
+            <span class="text-lg leading-none">+</span> New Work Order
+        </button>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-gray-800 rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-center">
+        <div class="flex gap-2 flex-wrap">
+            <button class="px-3 py-1.5 rounded-lg text-sm font-medium border border-indigo-500 bg-indigo-600 text-white">All Open</button>
+            <button class="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-gray-400 hover:text-white bg-gray-700">New</button>
+            <button class="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-gray-400 hover:text-white bg-gray-700">In Progress</button>
+            <button class="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-gray-400 hover:text-white bg-gray-700">Waiting Parts</button>
+        </div>
+        <input type="text" placeholder="Search queue..." class="ml-auto bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-gray-700"><div class="text-2xl font-bold text-white">6</div><div class="text-xs text-gray-400 mt-1">Total Open</div></div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-gray-700"><div class="text-2xl font-bold text-red-400">2</div><div class="text-xs text-gray-400 mt-1">Priority 1</div></div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-gray-700"><div class="text-2xl font-bold text-cyan-400">3</div><div class="text-xs text-gray-400 mt-1">In Progress</div></div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-gray-700"><div class="text-2xl font-bold text-yellow-400">1</div><div class="text-xs text-gray-400 mt-1">Waiting Parts</div></div>
+    </div>
+
+    <!-- Work Order Cards -->
+    <div class="space-y-3">
+
+        <!-- P1 card with photos badge -->
+        <div class="bg-gray-800 rounded-xl p-4 border border-red-800 hover:border-red-500 transition cursor-pointer">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-mono text-xs text-gray-400">WO-0001041</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-p1">⚡ P1 Urgent</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-in_progress">In Progress</span>
+                        <span class="text-xs bg-gray-600 text-gray-200 px-2 py-0.5 rounded-full">📷 3</span>
+                    </div>
+                    <p class="text-white font-semibold text-base">SVL 75-3</p>
+                    <p class="text-gray-400 text-sm mt-1">Hydraulic leak on boom cylinder — oil pooling on frame. Unit is down.</p>
+                    <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                        <span>By: Dale</span><span>·</span><span>Mar 17, 2026</span>
+                    </div>
+                </div>
+                <select class="text-xs bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white focus:outline-none">
+                    <option>In Progress</option><option>New</option><option>Waiting Parts</option><option>Completed</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- P1 card -->
+        <div class="bg-gray-800 rounded-xl p-4 border border-red-800 hover:border-red-500 transition cursor-pointer">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-mono text-xs text-gray-400">WO-0001042</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-p1">⚡ P1 Urgent</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-new">New</span>
+                    </div>
+                    <p class="text-white font-semibold text-base">Truck 12 (F-350)</p>
+                    <p class="text-gray-400 text-sm mt-1">Check engine light on, rough idle. Needed for field tomorrow morning.</p>
+                    <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                        <span>By: Randy</span><span>·</span><span>Mar 17, 2026</span>
+                    </div>
+                </div>
+                <select class="text-xs bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white focus:outline-none">
+                    <option>New</option><option>In Progress</option><option>Waiting Parts</option><option>Completed</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- External work card with PDF badge -->
+        <div class="bg-gray-800 rounded-xl p-4 border border-orange-800 hover:border-orange-500 transition cursor-pointer">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-mono text-xs text-gray-400">WO-0001043</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-p2">🔶 P2 Important</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-new">New</span>
+                        <span class="text-xs bg-orange-700 text-orange-100 px-2 py-0.5 rounded-full">🔧 External</span>
+                        <span class="text-xs bg-gray-600 text-gray-200 px-2 py-0.5 rounded-full">📄 1</span>
+                    </div>
+                    <p class="text-white font-semibold text-base">Truck 7 (F-250)</p>
+                    <p class="text-gray-400 text-sm mt-1">Front end alignment done at Valley Alignment. Invoice attached.</p>
+                    <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                        <span>By: Randy</span><span>·</span><span>Mar 18, 2026</span>
+                    </div>
+                </div>
+                <select class="text-xs bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white focus:outline-none">
+                    <option>New</option><option>In Progress</option><option>Waiting Parts</option><option>Completed</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Waiting parts -->
+        <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-indigo-500 transition cursor-pointer">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-mono text-xs text-gray-400">WO-0001039</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-p2">� P2 Important</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-waiting_parts">Waiting Parts</span>
+                    </div>
+                    <p class="text-white font-semibold text-base">Hydroseeder — Semi Truck</p>
+                    <p class="text-gray-400 text-sm mt-1">Brake chamber leaking air. Parts ordered, ETA Friday.</p>
+                    <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                        <span>By: Steve</span><span>·</span><span>Mar 15, 2026</span>
+                    </div>
+                </div>
+                <select class="text-xs bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white focus:outline-none">
+                    <option>Waiting Parts</option><option>New</option><option>In Progress</option><option>Completed</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Annual inspection -->
+        <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-indigo-500 transition cursor-pointer">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-mono text-xs text-gray-400">WO-0001038</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-p3">🔵 P3 Normal</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-in_progress">In Progress</span>
+                        <span class="text-xs bg-purple-800 text-purple-200 px-2 py-0.5 rounded-full">Annual Inspection</span>
+                    </div>
+                    <p class="text-white font-semibold text-base">John Deere Gator 825i</p>
+                    <p class="text-gray-400 text-sm mt-1">Annual inspection — all fluids, belts, brake check, spray tank plumbing.</p>
+                    <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                        <span>By: Dale</span><span>·</span><span>Mar 14, 2026</span>
+                    </div>
+                </div>
+                <select class="text-xs bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white focus:outline-none">
+                    <option>In Progress</option><option>New</option><option>Waiting Parts</option><option>Completed</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Low priority -->
+        <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-indigo-500 transition cursor-pointer">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-mono text-xs text-gray-400">WO-0001035</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-low">⬇️ Low</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-new">New</span>
+                    </div>
+                    <p class="text-white font-semibold text-base">SVL 95-2</p>
+                    <p class="text-gray-400 text-sm mt-1">Left side work light cracked. Not urgent but replace before next season.</p>
+                    <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                        <span>By: Randy</span><span>·</span><span>Mar 10, 2026</span>
+                    </div>
+                </div>
+                <select class="text-xs bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white focus:outline-none">
+                    <option>New</option><option>In Progress</option><option>Waiting Parts</option><option>Completed</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- EQUIPMENT DASHBOARD VIEW -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="view-dashboard" class="hidden max-w-5xl mx-auto p-4 md:p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-extrabold text-white">Equipment Dashboard</h1>
+            <p class="text-gray-400 text-sm mt-1">2026 Annual Inspection Progress</p>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-gray-700"><div class="text-3xl font-bold text-white">14</div><div class="text-xs text-gray-400 mt-1">Total Units</div></div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-green-800"><div class="text-3xl font-bold text-green-400">8</div><div class="text-xs text-gray-400 mt-1">Inspected ✓</div></div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-cyan-800"><div class="text-3xl font-bold text-cyan-400">3</div><div class="text-xs text-gray-400 mt-1">In Progress</div></div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-yellow-800"><div class="text-3xl font-bold text-yellow-400">3</div><div class="text-xs text-gray-400 mt-1">Not Started</div></div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="bg-gray-800 rounded-xl p-4 mb-6 border border-gray-700">
+        <div class="flex justify-between text-sm text-gray-400 mb-2">
+            <span>2026 Annual Inspection Progress</span>
+            <span class="font-semibold text-white">57%</span>
+        </div>
+        <div class="w-full bg-gray-700 rounded-full h-3">
+            <div class="bg-green-500 h-3 rounded-full" style="width:57%"></div>
+        </div>
+    </div>
+
+    <!-- Equipment Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+        <div class="rounded-xl p-4 border border-green-600 bg-green-900/20 cursor-pointer hover:opacity-90 transition">
+            <div class="flex justify-between items-start mb-3">
+                <div><p class="text-white font-bold">SVL 75-3</p><p class="text-gray-400 text-xs mt-0.5">Kubota SVL</p></div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-green-700 text-green-100">✅ Annual Done</span>
+            </div>
+            <div class="space-y-1.5 text-xs text-gray-400">
+                <div class="flex justify-between"><span>Open work orders</span><span class="text-yellow-400 font-semibold">1</span></div>
+                <div class="flex justify-between"><span>Last completed</span><span class="text-gray-300">Feb 12, 2026</span></div>
+                <div class="flex justify-between"><span>Annual reset</span><span class="text-gray-300">Nov 1</span></div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-700 flex gap-2">
+                <button class="flex-1 text-center text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 rounded-lg">View History</button>
+                <button class="flex-1 text-center text-xs bg-indigo-700 hover:bg-indigo-600 text-indigo-100 py-1.5 rounded-lg">+ Work Order</button>
+            </div>
+        </div>
+
+        <div class="rounded-xl p-4 border border-green-600 bg-green-900/20 cursor-pointer hover:opacity-90 transition">
+            <div class="flex justify-between items-start mb-3">
+                <div><p class="text-white font-bold">SVL 95-2</p><p class="text-gray-400 text-xs mt-0.5">Kubota SVL</p></div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-green-700 text-green-100">✅ Annual Done</span>
+            </div>
+            <div class="space-y-1.5 text-xs text-gray-400">
+                <div class="flex justify-between"><span>Open work orders</span><span class="text-yellow-400 font-semibold">1</span></div>
+                <div class="flex justify-between"><span>Last completed</span><span class="text-gray-300">Jan 28, 2026</span></div>
+                <div class="flex justify-between"><span>Annual reset</span><span class="text-gray-300">Nov 1</span></div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-700 flex gap-2">
+                <button class="flex-1 text-center text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 rounded-lg">View History</button>
+                <button class="flex-1 text-center text-xs bg-indigo-700 hover:bg-indigo-600 text-indigo-100 py-1.5 rounded-lg">+ Work Order</button>
+            </div>
+        </div>
+
+        <div class="rounded-xl p-4 border border-cyan-600 bg-cyan-900/20 cursor-pointer hover:opacity-90 transition">
+            <div class="flex justify-between items-start mb-3">
+                <div><p class="text-white font-bold">John Deere Gator 825i</p><p class="text-gray-400 text-xs mt-0.5">SxS with Spray Tank</p></div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-cyan-700 text-cyan-100">🔄 In Progress</span>
+            </div>
+            <div class="space-y-1.5 text-xs text-gray-400">
+                <div class="flex justify-between"><span>Open work orders</span><span class="text-yellow-400 font-semibold">1</span></div>
+                <div class="flex justify-between"><span>Last completed</span><span class="text-gray-300">Mar 8, 2025</span></div>
+                <div class="flex justify-between"><span>Annual reset</span><span class="text-gray-300">Oct 15</span></div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-700 flex gap-2">
+                <button class="flex-1 text-center text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 rounded-lg">View History</button>
+                <button class="flex-1 text-center text-xs bg-indigo-700 hover:bg-indigo-600 text-indigo-100 py-1.5 rounded-lg">+ Work Order</button>
+            </div>
+        </div>
+
+        <div class="rounded-xl p-4 border border-green-600 bg-green-900/20 cursor-pointer hover:opacity-90 transition">
+            <div class="flex justify-between items-start mb-3">
+                <div><p class="text-white font-bold">Truck 12 (F-350)</p><p class="text-gray-400 text-xs mt-0.5">Pickup Truck</p></div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-green-700 text-green-100">✅ Annual Done</span>
+            </div>
+            <div class="space-y-1.5 text-xs text-gray-400">
+                <div class="flex justify-between"><span>Open work orders</span><span class="text-yellow-400 font-semibold">1</span></div>
+                <div class="flex justify-between"><span>Last completed</span><span class="text-gray-300">Dec 4, 2025</span></div>
+                <div class="flex justify-between"><span>Annual reset</span><span class="text-gray-300">Nov 1</span></div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-700 flex gap-2">
+                <button class="flex-1 text-center text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 rounded-lg">View History</button>
+                <button class="flex-1 text-center text-xs bg-indigo-700 hover:bg-indigo-600 text-indigo-100 py-1.5 rounded-lg">+ Work Order</button>
+            </div>
+        </div>
+
+        <div class="rounded-xl p-4 border border-gray-600 bg-gray-800 cursor-pointer hover:opacity-90 transition">
+            <div class="flex justify-between items-start mb-3">
+                <div><p class="text-white font-bold">Hydroseeder Combo</p><p class="text-gray-400 text-xs mt-0.5">Hydroseeder</p></div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-gray-600 text-gray-300">⬜ Not Started</span>
+            </div>
+            <div class="space-y-1.5 text-xs text-gray-400">
+                <div class="flex justify-between"><span>Open work orders</span><span class="text-yellow-400 font-semibold">1</span></div>
+                <div class="flex justify-between"><span>Last completed</span><span class="text-gray-300">Nov 2, 2025</span></div>
+                <div class="flex justify-between"><span>Annual reset</span><span class="text-gray-300">Mar 1</span></div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-700 flex gap-2">
+                <button class="flex-1 text-center text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 rounded-lg">View History</button>
+                <button class="flex-1 text-center text-xs bg-indigo-700 hover:bg-indigo-600 text-indigo-100 py-1.5 rounded-lg">+ Work Order</button>
+            </div>
+        </div>
+
+        <div class="rounded-xl p-4 border border-cyan-600 bg-cyan-900/20 cursor-pointer hover:opacity-90 transition">
+            <div class="flex justify-between items-start mb-3">
+                <div><p class="text-white font-bold">Tractor — Kubota M7</p><p class="text-gray-400 text-xs mt-0.5">Tractor</p></div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-cyan-700 text-cyan-100">🔄 In Progress</span>
+            </div>
+            <div class="space-y-1.5 text-xs text-gray-400">
+                <div class="flex justify-between"><span>Open work orders</span><span class="text-gray-500">0</span></div>
+                <div class="flex justify-between"><span>Last completed</span><span class="text-gray-300">Feb 28, 2026</span></div>
+                <div class="flex justify-between"><span>Annual reset</span><span class="text-gray-300">Feb 1</span></div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-700 flex gap-2">
+                <button class="flex-1 text-center text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 rounded-lg">View History</button>
+                <button class="flex-1 text-center text-xs bg-indigo-700 hover:bg-indigo-600 text-indigo-100 py-1.5 rounded-lg">+ Work Order</button>
+            </div>
+        </div>
+
+        <div class="rounded-xl p-4 border border-gray-600 bg-gray-800 cursor-pointer hover:opacity-90 transition">
+            <div class="flex justify-between items-start mb-3">
+                <div><p class="text-white font-bold">Truck 7 (Ram 2500)</p><p class="text-gray-400 text-xs mt-0.5">Pickup Truck</p></div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-gray-600 text-gray-300">⬜ Not Started</span>
+            </div>
+            <div class="space-y-1.5 text-xs text-gray-400">
+                <div class="flex justify-between"><span>Open work orders</span><span class="text-gray-500">0</span></div>
+                <div class="flex justify-between"><span>Last completed</span><span class="text-gray-300">Nov 18, 2025</span></div>
+                <div class="flex justify-between"><span>Annual reset</span><span class="text-gray-300">Nov 1</span></div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-700 flex gap-2">
+                <button class="flex-1 text-center text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 rounded-lg">View History</button>
+                <button class="flex-1 text-center text-xs bg-indigo-700 hover:bg-indigo-600 text-indigo-100 py-1.5 rounded-lg">+ Work Order</button>
+            </div>
+        </div>
+
+        <div class="rounded-xl p-4 border border-gray-600 bg-gray-800 cursor-pointer hover:opacity-90 transition">
+            <div class="flex justify-between items-start mb-3">
+                <div><p class="text-white font-bold">Gator 620i</p><p class="text-gray-400 text-xs mt-0.5">SxS with Spray Tank</p></div>
+                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-gray-600 text-gray-300">⬜ Not Started</span>
+            </div>
+            <div class="space-y-1.5 text-xs text-gray-400">
+                <div class="flex justify-between"><span>Open work orders</span><span class="text-gray-500">0</span></div>
+                <div class="flex justify-between"><span>Last completed</span><span class="text-gray-300">Oct 5, 2025</span></div>
+                <div class="flex justify-between"><span>Annual reset</span><span class="text-gray-300">Oct 15</span></div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-700 flex gap-2">
+                <button class="flex-1 text-center text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 rounded-lg">View History</button>
+                <button class="flex-1 text-center text-xs bg-indigo-700 hover:bg-indigo-600 text-indigo-100 py-1.5 rounded-lg">+ Work Order</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- HISTORY VIEW -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="view-history" class="hidden max-w-5xl mx-auto p-4 md:p-6">
+    <h1 class="text-2xl font-extrabold text-white mb-1">Work Order History</h1>
+    <p class="text-gray-400 text-sm mb-6">Search and filter all work orders</p>
+    <div class="bg-gray-800 rounded-xl p-4 mb-5 space-y-3">
+        <div class="flex gap-3"><input type="text" placeholder="Search by WO#, unit, employee, keywords..." class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none">
+        <button class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold">Search</button></div>
+        <div class="flex gap-3 flex-wrap items-center">
+            <select class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"><option>All Statuses</option><option>Completed</option><option>In Progress</option></select>
+            <input type="date" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+            <span class="text-gray-500 text-sm">to</span>
+            <input type="date" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+            <label class="flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" class="w-4 h-4"> Annual inspections only</label>
+            <label class="flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" class="w-4 h-4"> External work only</label>
+        </div>
+    </div>
+    <p class="text-sm text-gray-500 mb-3">8 results</p>
+    <div class="space-y-2">
+        <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-indigo-500 cursor-pointer transition">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-mono text-xs text-indigo-400 font-semibold">WO-0001036</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-p3">P3 Normal</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-completed">Completed</span>
+                        <span class="text-xs bg-purple-800 text-purple-200 px-2 py-0.5 rounded-full">Annual</span>
+                        <span class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded-full">Tracked Unit</span>
+                        <span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">📷 2</span>
+                    </div>
+                    <p class="text-white font-semibold">SVL 75-3</p>
+                    <p class="text-gray-400 text-sm mt-1">Annual inspection — engine, hydraulics, undercarriage, greased all pivots.</p>
+                    <div class="flex gap-3 mt-2 text-xs text-gray-500"><span>By: Dale</span><span>Created: Feb 12, 2026</span><span>Completed: Feb 12, 2026</span></div>
+                </div>
+            </div>
+        </div>
+        <!-- External work history card -->
+        <div class="bg-gray-800 rounded-xl p-4 border border-orange-900 hover:border-orange-500 cursor-pointer transition">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-mono text-xs text-indigo-400 font-semibold">WO-0001030</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-p2">P2 Important</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-completed">Completed</span>
+                        <span class="text-xs bg-orange-700 text-orange-100 px-2 py-0.5 rounded-full">🔧 External: Valley Alignment</span>
+                        <span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">📄 1</span>
+                    </div>
+                    <p class="text-white font-semibold">Truck 7 (F-250)</p>
+                    <p class="text-gray-400 text-sm mt-1">Front end alignment performed externally. Invoice #INV-2847 attached.</p>
+                    <div class="flex gap-3 mt-2 text-xs text-gray-500"><span>By: Randy</span><span>Created: Jan 15, 2026</span><span>Completed: Jan 15, 2026</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 hover:border-indigo-500 cursor-pointer transition">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                        <span class="font-mono text-xs text-indigo-400 font-semibold">WO-0001033</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-p2">P2 Important</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full badge-completed">Completed</span>
+                    </div>
+                    <p class="text-white font-semibold">Truck 12 (F-350)</p>
+                    <p class="text-gray-400 text-sm mt-1">Replaced rear brake pads and rotors. Adjusted e-brake cable.</p>
+                    <div class="flex gap-3 mt-2 text-xs text-gray-500"><span>By: Steve</span><span>Created: Jan 22, 2026</span><span>Completed: Jan 23, 2026</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- WORK ORDER FORM VIEW -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="view-form" class="hidden max-w-3xl mx-auto p-4 md:p-8">
+    <header class="text-center mb-6 pt-2">
+        <h1 class="text-3xl font-extrabold text-white">Work Order Entry</h1>
+        <p class="text-indigo-400 text-sm mt-1 font-mono">WO-0001044 (auto-assigned)</p>
+    </header>
+    <div class="bg-gray-800 p-6 md:p-8 rounded-xl shadow-2xl space-y-6">
+        <!-- Priority + Status -->
+        <div class="grid grid-cols-2 gap-4">
+            <div><label class="block text-sm font-medium text-gray-300 mb-1">Priority</label>
+            <select class="block w-full rounded-lg border-gray-600 bg-gray-700 text-white border p-3" style="height:48px;"><option>⚡ Priority 1 — Urgent</option><option>🔶 Priority 2 — Important</option><option selected>🔵 Priority 3 — Normal</option><option>⬇️ Low</option></select></div>
+            <div><label class="block text-sm font-medium text-gray-300 mb-1">Status</label>
+            <select class="block w-full rounded-lg border-gray-600 bg-gray-700 text-white border p-3" style="height:48px;"><option selected>New</option><option>In Progress</option><option>Waiting on Parts</option><option>Completed</option></select></div>
+        </div>
+        <!-- Unit + Employee -->
+        <div class="grid grid-cols-2 gap-4">
+            <div><label class="block text-sm font-medium text-gray-300">Unit # / Description <span class="text-red-400">*</span></label>
+            <input type="text" value="Truck 7 (F-250)" class="mt-1 block w-full rounded-lg border-gray-600 p-3 bg-gray-700 text-white border" style="height:48px;">
+            <p class="text-xs mt-1 text-green-400">✓ Matched: Ford F-250 Pickup</p></div>
+            <div><label class="block text-sm font-medium text-gray-300">Requested By</label>
+            <input type="text" value="Randy" class="mt-1 block w-full rounded-lg border-gray-600 p-3 bg-gray-700 text-white border" style="height:48px;"></div>
+        </div>
+        <!-- Date + Hours + Km -->
+        <div class="grid grid-cols-3 gap-4">
+            <div><label class="block text-sm font-medium text-gray-300">Date</label><input type="date" value="2026-03-18" class="mt-1 block w-full rounded-lg border-gray-600 bg-gray-700 text-white border" style="height:48px;padding:0 12px;"></div>
+            <div><label class="block text-sm font-medium text-gray-300">Hrs / Odometer</label><input type="number" placeholder="" class="mt-1 block w-full rounded-lg border-gray-600 p-3 bg-gray-700 text-white border" style="height:48px;"></div>
+            <div><label class="block text-sm font-medium text-gray-300">Km</label><input type="number" placeholder="" class="mt-1 block w-full rounded-lg border-gray-600 p-3 bg-gray-700 text-white border" style="height:48px;"></div>
+        </div>
+        <!-- Came in for -->
+        <div><label class="block text-lg font-semibold text-white mb-2">What It Came In For...</label>
+        <textarea rows="3" class="mt-1 block w-full rounded-lg border-gray-600 p-4 bg-gray-700 text-white border">Front end alignment needed. Pulled heavily to the right after hitting a pothole.</textarea></div>
+        <!-- Got done -->
+        <div><label class="block text-lg font-semibold text-white mb-2">What Got Done...</label>
+        <textarea rows="4" class="mt-1 block w-full rounded-lg border-gray-600 p-4 bg-gray-700 text-white border">Vehicle sent to Valley Alignment. Alignment performed and documented on their report.</textarea></div>
+        <!-- Maintenance Checklist toggle -->
+        <div class="border-t border-gray-700 pt-6">
+            <div class="flex items-center mb-2"><input type="checkbox" class="w-6 h-6 text-indigo-600 rounded border-gray-500 bg-gray-700"><label class="ml-3 block text-lg font-bold text-white">Add Maintenance Checklist?</label></div>
+        </div>
+        <!-- External Work toggle — shown expanded for preview -->
+        <div class="border-t border-gray-700 pt-6">
+            <div class="flex items-center mb-4">
+                <input type="checkbox" checked class="w-6 h-6 text-orange-600 rounded border-gray-500 bg-gray-700">
+                <label class="ml-3 block text-lg font-bold text-white">External Work? <span class="text-sm font-normal text-gray-400">(work done outside the shop)</span></label>
+            </div>
+            <div class="space-y-4 pl-2 border-l-2 border-orange-500">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">Vendor / Shop Name <span class="text-red-400">*</span></label>
+                        <input type="text" value="Valley Alignment" class="block w-full rounded-lg border-gray-600 p-3 bg-gray-700 text-white border" style="height:48px;">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-1">External Invoice / Report #</label>
+                        <input type="text" value="INV-2847" class="block w-full rounded-lg border-gray-600 p-3 bg-gray-700 text-white border" style="height:48px;">
+                    </div>
+                </div>
+                <p class="text-xs text-orange-400">📎 Attach the scanned invoice or report below in the Documents section.</p>
+            </div>
+        </div>
+        <!-- Photos section with deletable previews -->
+        <div class="border-t border-gray-700 pt-6">
+            <label class="block text-lg font-semibold text-white mb-2">Photos <span class="text-sm font-normal text-gray-400">(optional — multiple allowed)</span></label>
+            <input type="file" accept="image/*" multiple class="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700">
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <div class="relative">
+                    <div class="w-full h-32 bg-gray-700 rounded-lg border-2 border-gray-600 flex items-center justify-center text-gray-500 text-sm">[Photo 1 — Tire wear]</div>
+                    <button class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-7 h-7 text-sm font-bold flex items-center justify-center shadow">×</button>
+                </div>
+                <div class="relative">
+                    <div class="w-full h-32 bg-gray-700 rounded-lg border-2 border-gray-600 flex items-center justify-center text-gray-500 text-sm">[Photo 2 — Invoice photo]</div>
+                    <button class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-7 h-7 text-sm font-bold flex items-center justify-center shadow">×</button>
+                </div>
+            </div>
+        </div>
+        <!-- Documents section -->
+        <div class="border-t border-gray-700 pt-6">
+            <label class="block text-lg font-semibold text-white mb-1">Documents <span class="text-sm font-normal text-gray-400">(PDF, JPG, PNG — multiple allowed)</span></label>
+            <p class="text-xs text-gray-400 mb-3">Attach wiring diagrams, invoices, external reports, or scanned documents.</p>
+            <input type="file" accept=".pdf,image/jpeg,image/png" multiple class="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-500">
+            <div class="mt-3 space-y-2">
+                <div class="flex items-center gap-3 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+                    <span class="text-lg">📄</span>
+                    <span class="text-sm text-white flex-1 truncate">Valley-Alignment-INV-2847.pdf</span>
+                    <span class="text-xs text-gray-400">284 KB</span>
+                    <button class="text-red-400 hover:text-red-300 font-bold text-lg px-1">×</button>
+                </div>
+            </div>
+        </div>
+        <!-- Action buttons -->
+        <div class="pt-2 grid grid-cols-2 gap-4">
+            <button class="flex justify-center py-3 px-4 border-2 border-red-600 rounded-lg text-base font-medium text-red-600 bg-white hover:bg-red-50">Clear Form</button>
+            <button class="flex justify-center py-3 px-4 border border-transparent rounded-lg text-base font-medium text-white bg-gray-600 hover:bg-gray-500">💾 Save Draft</button>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <button class="flex justify-center py-3 px-4 border border-transparent rounded-lg text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700">🖨️ Preview / Print</button>
+            <button class="flex justify-center py-3 px-4 border border-transparent rounded-lg text-base font-medium text-white bg-green-600 hover:bg-green-700">✅ Mark Completed</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- ADMIN VIEW (abbreviated) -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="view-admin" class="hidden max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+    <h1 class="text-2xl font-extrabold text-white">Admin Dashboard</h1>
+    <div class="flex gap-2 flex-wrap border-b border-gray-700 pb-2">
+        <button class="px-4 py-2 rounded-t-lg text-sm font-medium text-white bg-gray-700">👤 Users</button>
+        <button class="px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white">🔧 Equipment</button>
+        <button class="px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white">✅ Checklists</button>
+        <button class="px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white">📤 Export</button>
+    </div>
+    <div class="space-y-3">
+        <div class="flex items-center justify-between"><h2 class="text-lg font-bold text-white">Users</h2>
+        <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Generate Invite Code</button></div>
+        <div class="bg-indigo-900 border border-indigo-500 rounded-xl p-4 text-center">
+            <p class="text-sm text-gray-400 mb-2">Share this code with your worker (expires 7 days):</p>
+            <p class="text-3xl font-mono font-bold text-indigo-300 tracking-widest">K8XP2WNQ</p>
+            <p class="text-xs text-gray-500 mt-2">Worker goes to register.html and enters this code to create their account.</p>
+        </div>
+        <div class="flex items-center justify-between bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
+            <div><p class="text-white font-medium text-sm">Randy Horst</p><p class="text-gray-400 text-xs">randy@pineview.ca</p></div>
+            <select class="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-xs text-white"><option selected>Admin</option><option>Worker</option><option>Viewer</option></select>
+        </div>
+        <div class="flex items-center justify-between bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
+            <div><p class="text-white font-medium text-sm">Dale Smith</p><p class="text-gray-400 text-xs">dale@pineview.ca</p></div>
+            <select class="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-xs text-white"><option>Admin</option><option selected>Worker</option><option>Viewer</option></select>
+        </div>
+        <div class="flex items-center justify-between bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
+            <div><p class="text-white font-medium text-sm">Steve Johnson</p><p class="text-gray-400 text-xs">steve@pineview.ca</p></div>
+            <select class="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-xs text-white"><option>Admin</option><option selected>Worker</option><option>Viewer</option></select>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Apply saved or default light theme on load
+    (function() {
+        const t = localStorage.getItem('shopAppTheme') || 'light';
+        document.documentElement.classList.remove('theme-light','theme-dark');
+        document.documentElement.classList.add(t === 'dark' ? 'theme-dark' : 'theme-light');
+        document.documentElement.setAttribute('data-theme', t);
+    })();
+
+    function togglePreviewTheme() {
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.classList.remove('theme-light','theme-dark');
+        document.documentElement.classList.add(next === 'dark' ? 'theme-dark' : 'theme-light');
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('shopAppTheme', next);
+        const btn = document.getElementById('theme-btn');
+        if (btn) btn.title = next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+    }
+
+    function showView(name) {
+        document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+        document.getElementById('view-' + name)?.classList.remove('hidden');
+        document.querySelectorAll('.nav-link').forEach(a => {
+            const isActive = a.getAttribute('href') === '#' + name;
+            a.className = `nav-link flex flex-col items-center px-3 py-1 rounded-md text-xs font-medium transition ${isActive ? 'text-white bg-indigo-700' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`;
+        });
+    }
+
+    // Default to queue view on load
+    showView('queue');
+</script>
+</body>
+</html>

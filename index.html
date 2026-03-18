@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop Work Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
+<div class="text-center">
+    <div class="text-6xl mb-4">🔧</div>
+    <h1 class="text-3xl font-extrabold text-white mb-2" id="company-title">Shop Work Orders</h1>
+    <p class="text-gray-400 mb-8">Redirecting...</p>
+    <a href="login.html" class="text-indigo-400 underline text-sm">Click here if not redirected</a>
+</div>
+<script type="module">
+    import { initFirebase } from './js/firebase-init.js';
+    import { onAuthChange } from './js/auth.js';
+
+    const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+    if (settings.companyName) document.getElementById('company-title').textContent = settings.companyName;
+
+    const ok = initFirebase();
+    if (!ok) { window.location.href = 'settings.html'; }
+    else {
+        onAuthChange(user => {
+            window.location.href = user ? 'queue.html' : 'login.html';
+        });
+    }
+</script>
+</body>
+</html>

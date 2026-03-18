@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipment Dashboard - Shop Work Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+<nav id="main-nav" class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50"></nav>
+
+<div class="max-w-5xl mx-auto p-4 md:p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-extrabold text-white">Equipment Dashboard</h1>
+            <p class="text-gray-400 text-sm mt-1">Inspection progress by unit</p>
+        </div>
+        <div class="flex gap-2">
+            <select id="cycle-filter" onchange="renderDashboard()" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                <option value="">Current Cycle</option>
+            </select>
+            <a href="admin.html#equipment" class="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-4 py-2 rounded-lg text-sm font-medium transition">Manage Equipment</a>
+        </div>
+    </div>
+
+    <!-- Progress Summary -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-gray-700">
+            <div class="text-3xl font-bold text-white" id="stat-total-units">—</div>
+            <div class="text-xs text-gray-400 mt-1">Total Units</div>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-green-800">
+            <div class="text-3xl font-bold text-green-400" id="stat-completed">—</div>
+            <div class="text-xs text-gray-400 mt-1">Inspected ✓</div>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-cyan-800">
+            <div class="text-3xl font-bold text-cyan-400" id="stat-inprog">—</div>
+            <div class="text-xs text-gray-400 mt-1">In Progress</div>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center border border-yellow-800">
+            <div class="text-3xl font-bold text-yellow-400" id="stat-remaining">—</div>
+            <div class="text-xs text-gray-400 mt-1">Not Started</div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="bg-gray-800 rounded-xl p-4 mb-6 border border-gray-700">
+        <div class="flex justify-between text-sm text-gray-400 mb-2">
+            <span>Inspection Progress</span>
+            <span id="progress-pct" class="font-semibold text-white">0%</span>
+        </div>
+        <div class="w-full bg-gray-700 rounded-full h-3">
+            <div id="progress-bar" class="bg-green-500 h-3 rounded-full transition-all duration-500" style="width:0%"></div>
+        </div>
+    </div>
+
+    <!-- Equipment Cards -->
+    <div id="equipment-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="text-center text-gray-500 py-12 col-span-full">Loading equipment...</div>
+    </div>
+</div>
+
+<script type="module">
+    import { initFirebase } from './js/firebase-init.js';
+    import { requireAuth } from './js/auth.js';
+    import { getEquipmentList, searchWorkOrders } from './js/db.js';
+    import { renderNav } from './js/nav.js';
+
+    initFirebase();
+    renderNav('dashboard.html');
+    await requireAuth();
+
+    let equipment = [];
+    let workOrders = [];
+
+    const statusColors = {
+        completed: 'border-green-600 bg-green-900/20',
+        in_progress: 'border-cyan-600 bg-cyan-900/20',
+        not_started: 'border-gray-600 bg-gray-800'
+    };
+
+    async function load() {
+        equipment = await getEquipmentList();
+        workOrders = await searchWorkOrders({ status: 'all' });
+        renderDashboard();
+    }
+
+    window.renderDashboard = function() {
+        const container = document.getElementById('equipment-list');
+        if (equipment.length === 0) {
+            container.innerHTML = `<div class="col-span-full text-center text-gray-500 py-16">
+                <div class="text-4xl mb-3">🔧</div>
+                <p class="text-lg font-medium">No equipment added yet</p>
+                <p class="text-sm mt-1 mb-4">Go to Admin to add your fleet</p>
+                <a href="admin.html" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Add Equipment</a>
+            </div>`;
+            document.getElementById('stat-total-units').textContent = 0;
+            document.getElementById('stat-completed').textContent = 0;
+            document.getElementById('stat-inprog').textContent = 0;
+            document.getElementById('stat-remaining').textContent = 0;
+            return;
+        }
+
+        // Build inspection status for each unit
+        const unitData = equipment.map(eq => {
+            const unitWOs = workOrders.filter(wo =>
+                wo.matchedEquipmentId === eq.id || wo.unitOrDescription?.toLowerCase() === eq.unitNumber?.toLowerCase()
+            );
+            const annualWOs = unitWOs.filter(wo => wo.isInspection && wo.inspectionCategory === 'Annual');
+            const completedAnnual = annualWOs.find(wo => wo.status === 'completed');
+            const inProgressAnnual = annualWOs.find(wo => wo.status === 'in_progress' || wo.status === 'waiting_parts');
+            const openCount = unitWOs.filter(wo => wo.status !== 'completed').length;
+            const lastCompleted = unitWOs.filter(wo => wo.status === 'completed').sort((a, b) => {
+                const ad = a.completedAt ? new Date(a.completedAt) : 0;
+                const bd = b.completedAt ? new Date(b.completedAt) : 0;
+                return bd - ad;
+            })[0];
+
+            let inspStatus = 'not_started';
+            if (completedAnnual) inspStatus = 'completed';
+            else if (inProgressAnnual) inspStatus = 'in_progress';
+
+            return { ...eq, inspStatus, openCount, lastCompleted, unitWOs };
+        });
+
+        const totalUnits = unitData.length;
+        const completedCount = unitData.filter(u => u.inspStatus === 'completed').length;
+        const inProgCount = unitData.filter(u => u.inspStatus === 'in_progress').length;
+        const notStarted = unitData.filter(u => u.inspStatus === 'not_started').length;
+        const pct = totalUnits > 0 ? Math.round((completedCount / totalUnits) * 100) : 0;
+
+        document.getElementById('stat-total-units').textContent = totalUnits;
+        document.getElementById('stat-completed').textContent = completedCount;
+        document.getElementById('stat-inprog').textContent = inProgCount;
+        document.getElementById('stat-remaining').textContent = notStarted;
+        document.getElementById('progress-pct').textContent = pct + '%';
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        const inspLabels = { completed: '✅ Annual Done', in_progress: '🔄 In Progress', not_started: '⬜ Not Started' };
+        const inspBadge = { completed: 'bg-green-700 text-green-100', in_progress: 'bg-cyan-700 text-cyan-100', not_started: 'bg-gray-600 text-gray-300' };
+
+        container.innerHTML = unitData.map(u => {
+            const lastDate = u.lastCompleted?.completedAt ? new Date(u.lastCompleted.completedAt).toLocaleDateString() :
+                             u.lastCompleted?.date || '—';
+            return `
+            <div class="rounded-xl p-4 border ${statusColors[u.inspStatus]} cursor-pointer hover:opacity-90 transition"
+                 onclick="window.location.href='history.html?unit=${encodeURIComponent(u.unitNumber)}'">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <p class="text-white font-bold text-base">${u.unitNumber}</p>
+                        <p class="text-gray-400 text-xs mt-0.5">${u.equipmentType || '—'}</p>
+                    </div>
+                    <span class="text-xs font-semibold px-2 py-1 rounded-full ${inspBadge[u.inspStatus]}">${inspLabels[u.inspStatus]}</span>
+                </div>
+                <div class="space-y-1.5 text-xs text-gray-400">
+                    <div class="flex justify-between">
+                        <span>Open work orders</span>
+                        <span class="${u.openCount > 0 ? 'text-yellow-400 font-semibold' : 'text-gray-500'}">${u.openCount}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Last completed</span>
+                        <span class="text-gray-300">${lastDate}</span>
+                    </div>
+                    ${u.inspectionResetMonthDay ? `<div class="flex justify-between"><span>Annual reset</span><span class="text-gray-300">${u.inspectionResetMonthDay}</span></div>` : ''}
+                </div>
+                <div class="mt-3 pt-3 border-t border-gray-700 flex gap-2">
+                    <a href="history.html?unit=${encodeURIComponent(u.unitNumber)}" onclick="event.stopPropagation()"
+                       class="flex-1 text-center text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 py-1.5 rounded-lg transition">View History</a>
+                    <a href="new-work-order.html?unit=${encodeURIComponent(u.unitNumber)}" onclick="event.stopPropagation()"
+                       class="flex-1 text-center text-xs bg-indigo-700 hover:bg-indigo-600 text-indigo-100 py-1.5 rounded-lg transition">+ Work Order</a>
+                </div>
+            </div>`;
+        }).join('');
+    };
+
+    load();
+</script>
+</body>
+</html>

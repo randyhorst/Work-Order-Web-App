@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Shop Work Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+<nav id="main-nav" class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50"></nav>
+
+<div class="max-w-3xl mx-auto p-4 md:p-8 space-y-8">
+    <div>
+        <h1 class="text-2xl font-extrabold text-white">App Settings</h1>
+        <p class="text-gray-400 text-sm mt-1">Configure Firebase, company branding, and Google Drive integration. Settings are stored locally in this browser.</p>
+    </div>
+
+    <!-- Firebase Configuration -->
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold text-white">🔥 Firebase Configuration</h2>
+            <span id="firebase-status" class="text-xs px-3 py-1 rounded-full bg-gray-700 text-gray-400">Not configured</span>
+        </div>
+        <p class="text-sm text-gray-400">
+            Create a free project at <a href="https://console.firebase.google.com" target="_blank" class="text-indigo-400 underline">console.firebase.google.com</a>,
+            enable <strong>Authentication (Email/Password)</strong>, <strong>Firestore Database</strong>, then register a Web App to get these values.
+        </p>
+        <div class="grid grid-cols-1 gap-3">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">API Key</label>
+                <input type="text" id="cfg-apiKey" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="AIzaSy...">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Auth Domain</label>
+                    <input type="text" id="cfg-authDomain" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="project.firebaseapp.com">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Project ID</label>
+                    <input type="text" id="cfg-projectId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="my-project-id">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Storage Bucket</label>
+                    <input type="text" id="cfg-storageBucket" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="project.appspot.com">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Messaging Sender ID</label>
+                    <input type="text" id="cfg-messagingSenderId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="123456789">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">App ID</label>
+                <input type="text" id="cfg-appId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="1:123456789:web:abcdef">
+            </div>
+        </div>
+        <button onclick="saveFirebaseConfig()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Save Firebase Config</button>
+        <p id="firebase-save-status" class="text-sm h-5"></p>
+    </div>
+
+    <!-- Company Settings -->
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+        <h2 class="text-lg font-bold text-white">🏢 Company Settings</h2>
+        <p class="text-sm text-gray-400">These settings are used on the login page and on printed PDF reports.</p>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Company Name</label>
+                <input type="text" id="cfg-companyName" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., Pineview Vegetation Management">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Company ID (Firestore collection key)</label>
+                <input type="text" id="cfg-companyId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., pineview-2026 (no spaces, lowercase)">
+                <p class="text-xs text-gray-500 mt-1">This is how your company's data is stored in Firestore. Use a unique short ID.</p>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Company Logo URL (optional)</label>
+                <input type="text" id="cfg-logoUrl" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://... (direct image URL or base64)">
+                <p class="text-xs text-gray-500 mt-1">Logo appears on printed PDF work orders. Can be a hosted image URL or a base64 data URL.</p>
+            </div>
+            <div id="logo-preview" class="hidden">
+                <p class="text-xs text-gray-400 mb-2">Logo preview:</p>
+                <img id="logo-preview-img" src="" alt="Logo" class="max-h-16 max-w-48 rounded-lg border border-gray-600 bg-white p-1">
+            </div>
+        </div>
+        <button onclick="saveCompanySettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Save Company Settings</button>
+        <p id="company-save-status" class="text-sm h-5"></p>
+    </div>
+
+    <!-- Google Drive Settings -->
+    <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold text-white">📁 Google Drive — Photo &amp; Document Storage</h2>
+            <span id="drive-status" class="text-xs px-3 py-1 rounded-full bg-gray-700 text-gray-400">Not configured</span>
+        </div>
+        <p class="text-sm text-gray-400">
+            Photos and documents attached to work orders are uploaded directly to your Google Drive folder. Free, no credit card required.
+        </p>
+        <div class="bg-gray-900 border border-gray-600 rounded-lg p-4 text-xs text-gray-300 space-y-1">
+            <p class="font-semibold text-white mb-2">One-time setup (~10 min):</p>
+            <p>1. Go to <a href="https://console.cloud.google.com" target="_blank" class="text-indigo-400 underline">console.cloud.google.com</a> → New Project → name it anything</p>
+            <p>2. <strong>APIs &amp; Services → Library</strong> → search <em>Google Drive API</em> → Enable</p>
+            <p>3. <strong>APIs &amp; Services → OAuth consent screen</strong> → External → fill App name + your email → Save</p>
+            <p>4. <strong>APIs &amp; Services → Credentials → Create Credentials → OAuth Client ID</strong> → Web application → add your site URL to "Authorized JavaScript origins" → Create → copy the Client ID</p>
+            <p>5. In <strong>Google Drive</strong>, create a folder for work order files → open it → copy the ID from the URL: <code class="bg-gray-700 px-1 rounded">drive.google.com/drive/folders/<strong class="text-yellow-300">[FOLDER ID HERE]</strong></code></p>
+        </div>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">OAuth Client ID</label>
+                <input type="text" id="cfg-googleClientId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="123456789-abc.apps.googleusercontent.com">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Google Drive Folder ID</label>
+                <input type="text" id="cfg-driveFolderId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="1aBcDeFgHiJkLmNoPqRsTuVwXyZ">
+                <p class="text-xs text-gray-500 mt-1">All photos and PDFs will be uploaded into this folder.</p>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Google API Key <span class="text-gray-500">(optional — only needed if you use Google Picker)</span></label>
+                <input type="text" id="cfg-googleApiKey" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="AIzaSy...">
+            </div>
+        </div>
+        <button onclick="saveDriveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Save Drive Settings</button>
+        <p id="drive-save-status" class="text-sm h-5"></p>
+    </div>
+
+    <!-- Admin First-Time Setup -->
+    <div class="bg-gray-800 border border-yellow-700 rounded-xl p-6 space-y-4">
+        <h2 class="text-lg font-bold text-yellow-300">🚀 First-Time Admin Setup</h2>
+        <p class="text-sm text-gray-400">
+            After saving your Firebase config above, use this section to create the very first admin account for your company.
+            You only need to do this once.
+        </p>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Admin Name</label>
+                <input type="text" id="setup-name" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Your Name">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Admin Email</label>
+                <input type="email" id="setup-email" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="you@email.com">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Password (min 6 chars)</label>
+                <input type="password" id="setup-password" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="••••••••">
+            </div>
+        </div>
+        <div id="setup-error" class="hidden text-red-400 text-sm"></div>
+        <div id="setup-success" class="hidden text-green-400 text-sm"></div>
+        <button onclick="createAdminAccount()" class="bg-yellow-600 hover:bg-yellow-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Create Admin Account</button>
+    </div>
+
+    <!-- Back to app -->
+    <div class="text-center">
+        <a href="login.html" class="text-indigo-400 hover:underline text-sm">← Back to Login</a>
+    </div>
+</div>
+
+<script type="module">
+    import { initFirebase } from './js/firebase-init.js';
+    import { registerUser } from './js/auth.js';
+
+    const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
+    const APP_SETTINGS_KEY = 'shopAppSettings';
+
+    // Load saved values on page load
+    const savedCfg = JSON.parse(localStorage.getItem(APP_CONFIG_KEY) || '{}');
+    const savedSettings = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+
+    if (savedCfg.apiKey) {
+        document.getElementById('cfg-apiKey').value = savedCfg.apiKey || '';
+        document.getElementById('cfg-authDomain').value = savedCfg.authDomain || '';
+        document.getElementById('cfg-projectId').value = savedCfg.projectId || '';
+        document.getElementById('cfg-storageBucket').value = savedCfg.storageBucket || '';
+        document.getElementById('cfg-messagingSenderId').value = savedCfg.messagingSenderId || '';
+        document.getElementById('cfg-appId').value = savedCfg.appId || '';
+        document.getElementById('firebase-status').textContent = '✓ Configured';
+        document.getElementById('firebase-status').className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
+    }
+
+    document.getElementById('cfg-companyName').value = savedSettings.companyName || '';
+    document.getElementById('cfg-companyId').value = savedSettings.companyId || '';
+    document.getElementById('cfg-logoUrl').value = savedSettings.logoUrl || '';
+    document.getElementById('cfg-driveFolderId').value = savedSettings.driveFolderId || '';
+    document.getElementById('cfg-googleApiKey').value = savedSettings.googleApiKey || '';
+    document.getElementById('cfg-googleClientId').value = savedSettings.googleClientId || '';
+
+    if (savedSettings.logoUrl) {
+        document.getElementById('logo-preview-img').src = savedSettings.logoUrl;
+        document.getElementById('logo-preview').classList.remove('hidden');
+    }
+
+    document.getElementById('cfg-logoUrl').addEventListener('input', function() {
+        const val = this.value.trim();
+        if (val) {
+            document.getElementById('logo-preview-img').src = val;
+            document.getElementById('logo-preview').classList.remove('hidden');
+        } else {
+            document.getElementById('logo-preview').classList.add('hidden');
+        }
+    });
+
+    window.saveFirebaseConfig = function() {
+        const config = {
+            apiKey: document.getElementById('cfg-apiKey').value.trim(),
+            authDomain: document.getElementById('cfg-authDomain').value.trim(),
+            projectId: document.getElementById('cfg-projectId').value.trim(),
+            storageBucket: document.getElementById('cfg-storageBucket').value.trim(),
+            messagingSenderId: document.getElementById('cfg-messagingSenderId').value.trim(),
+            appId: document.getElementById('cfg-appId').value.trim()
+        };
+        if (!config.apiKey || !config.projectId) {
+            showStatus('firebase-save-status', 'API Key and Project ID are required.', 'text-red-400'); return;
+        }
+        localStorage.setItem(APP_CONFIG_KEY, JSON.stringify(config));
+        document.getElementById('firebase-status').textContent = '✓ Configured';
+        document.getElementById('firebase-status').className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
+        showStatus('firebase-save-status', '✓ Firebase config saved. Reload the page to activate.', 'text-green-400');
+    };
+
+    window.saveCompanySettings = function() {
+        const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const updated = {
+            ...existing,
+            companyName: document.getElementById('cfg-companyName').value.trim(),
+            companyId: document.getElementById('cfg-companyId').value.trim().toLowerCase().replace(/\s+/g, '-'),
+            logoUrl: document.getElementById('cfg-logoUrl').value.trim()
+        };
+        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
+        showStatus('company-save-status', '✓ Company settings saved.', 'text-green-400');
+    };
+
+    window.saveDriveSettings = function() {
+        const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const clientId = document.getElementById('cfg-googleClientId').value.trim();
+        const folderId = document.getElementById('cfg-driveFolderId').value.trim();
+        const updated = {
+            ...existing,
+            driveFolderId: folderId,
+            googleApiKey: document.getElementById('cfg-googleApiKey').value.trim(),
+            googleClientId: clientId
+        };
+        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
+        const badge = document.getElementById('drive-status');
+        if (clientId && folderId) {
+            badge.textContent = '✓ Configured';
+            badge.className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
+        }
+        showStatus('drive-save-status', '✓ Drive settings saved.', 'text-green-400');
+    };
+
+    window.createAdminAccount = async function() {
+        const name = document.getElementById('setup-name').value.trim();
+        const email = document.getElementById('setup-email').value.trim();
+        const password = document.getElementById('setup-password').value;
+        const settings = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const companyId = settings.companyId;
+        const errEl = document.getElementById('setup-error');
+        const succEl = document.getElementById('setup-success');
+        errEl.classList.add('hidden'); succEl.classList.add('hidden');
+
+        if (!name || !email || !password) { errEl.textContent = 'All fields are required.'; errEl.classList.remove('hidden'); return; }
+        if (!companyId) { errEl.textContent = 'Save Company Settings with a Company ID first.'; errEl.classList.remove('hidden'); return; }
+        if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.classList.remove('hidden'); return; }
+
+        try {
+            const ok = initFirebase();
+            if (!ok) { errEl.textContent = 'Save Firebase config first.'; errEl.classList.remove('hidden'); return; }
+            await registerUser(email, password, name, companyId, 'admin');
+            succEl.textContent = '✓ Admin account created! Go to Login to sign in.';
+            succEl.classList.remove('hidden');
+        } catch(e) {
+            errEl.textContent = e.message.includes('already-in-use') ? 'That email already has an account.' : e.message;
+            errEl.classList.remove('hidden');
+        }
+    };
+
+    function showStatus(id, msg, cls) {
+        const el = document.getElementById(id);
+        el.textContent = msg; el.className = `text-sm h-5 ${cls}`;
+        setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 5000);
+    }
+
+    // Try to init Firebase in case it's already configured
+    try { initFirebase(); } catch(e) {}
+
+    // Try to render nav if logged in
+    try {
+        const { renderNav } = await import('./js/nav.js');
+        renderNav('settings.html');
+    } catch(e) {}
+</script>
+</body>
+</html>

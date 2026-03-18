@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Invite codes - anyone can read to validate, only admins can write
+    match /inviteCodes/{code} {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin(request.auth.uid, resource.data.companyId);
+    }
+
+    // Company data - isolated per company
+    match /companies/{companyId} {
+      allow read, write: if request.auth != null && isCompanyMember(request.auth.uid, companyId);
+
+      // Users collection
+      match /users/{userId} {
+        allow read: if request.auth != null && isCompanyMember(request.auth.uid, companyId);
+        allow write: if request.auth != null &&
+          (request.auth.uid == userId || isAdmin(request.auth.uid, companyId));
+        allow create: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Work orders
+      match /workOrders/{workOrderId} {
+        allow read: if request.auth != null && isCompanyMember(request.auth.uid, companyId);
+        allow create: if request.auth != null && isWorkerOrAdmin(request.auth.uid, companyId);
+        allow update: if request.auth != null && isWorkerOrAdmin(request.auth.uid, companyId);
+        allow delete: if request.auth != null && isAdmin(request.auth.uid, companyId);
+      }
+
+      // Equipment list
+      match /equipment/{equipmentId} {
+        allow read: if request.auth != null && isCompanyMember(request.auth.uid, companyId);
+        allow write: if request.auth != null && isAdmin(request.auth.uid, companyId);
+      }
+
+      // Checklists (admin editable)
+      match /checklists/{checklistId} {
+        allow read: if request.auth != null && isCompanyMember(request.auth.uid, companyId);
+        allow write: if request.auth != null && isAdmin(request.auth.uid, companyId);
+      }
+
+      // Counters
+      match /counters/{counterId} {
+        allow read: if request.auth != null && isCompanyMember(request.auth.uid, companyId);
+        allow write: if request.auth != null && isWorkerOrAdmin(request.auth.uid, companyId);
+      }
+    }
+
+    // Helper functions
+    function getUserRole(uid, companyId) {
+      return get(/databases/$(database)/documents/companies/$(companyId)/users/$(uid)).data.role;
+    }
+
+    function isCompanyMember(uid, companyId) {
+      return exists(/databases/$(database)/documents/companies/$(companyId)/users/$(uid));
+    }
+
+    function isAdmin(uid, companyId) {
+      return isCompanyMember(uid, companyId) && getUserRole(uid, companyId) == 'admin';
+    }
+
+    function isWorkerOrAdmin(uid, companyId) {
+      return isCompanyMember(uid, companyId) &&
+        (getUserRole(uid, companyId) == 'admin' || getUserRole(uid, companyId) == 'worker');
+    }
+  }
+}

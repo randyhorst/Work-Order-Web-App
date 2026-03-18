@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History - Shop Work Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+<nav id="main-nav" class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50"></nav>
+
+<div class="max-w-5xl mx-auto p-4 md:p-6">
+    <h1 class="text-2xl font-extrabold text-white mb-1">Work Order History</h1>
+    <p class="text-gray-400 text-sm mb-6">Search and filter all work orders</p>
+
+    <!-- Search & Filters -->
+    <div class="bg-gray-800 rounded-xl p-4 mb-5 space-y-3">
+        <div class="flex gap-3 flex-wrap">
+            <input type="text" id="search-input" placeholder="Search by WO#, unit, employee, keywords..." class="flex-1 min-w-48 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button onclick="doSearch()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Search</button>
+        </div>
+        <div class="flex gap-3 flex-wrap items-center">
+            <select id="filter-status" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                <option value="all">All Statuses</option>
+                <option value="new">New</option>
+                <option value="in_progress">In Progress</option>
+                <option value="waiting_parts">Waiting Parts</option>
+                <option value="completed">Completed</option>
+            </select>
+            <input type="date" id="filter-date-from" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+            <span class="text-gray-500 text-sm">to</span>
+            <input type="date" id="filter-date-to" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+            <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                <input type="checkbox" id="filter-annual" class="w-4 h-4"> Annual inspections only
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                <input type="checkbox" id="filter-external" class="w-4 h-4"> External work only
+            </label>
+            <button onclick="clearFilters()" class="text-sm text-gray-500 hover:text-gray-300 underline">Clear</button>
+        </div>
+    </div>
+
+    <div id="results-info" class="text-sm text-gray-500 mb-3"></div>
+    <div id="history-list" class="space-y-2">
+        <div class="text-center text-gray-500 py-12">Enter a search or click Search to load history.</div>
+    </div>
+</div>
+
+<script type="module">
+    import { initFirebase } from './js/firebase-init.js';
+    import { requireAuth } from './js/auth.js';
+    import { searchWorkOrders } from './js/db.js';
+    import { renderNav } from './js/nav.js';
+
+    initFirebase();
+    renderNav('history.html');
+    await requireAuth();
+
+    const priorityConfig = {
+        priority_1: { label: 'P1 Urgent', cls: 'badge-p1' },
+        priority_2: { label: 'P2 Important', cls: 'badge-p2' },
+        priority_3: { label: 'P3 Normal', cls: 'badge-p3' },
+        low:        { label: 'Low', cls: 'badge-low' }
+    };
+    const statusConfig = {
+        new:           { label: 'New', cls: 'badge-new' },
+        in_progress:   { label: 'In Progress', cls: 'badge-in_progress' },
+        waiting_parts: { label: 'Waiting Parts', cls: 'badge-waiting_parts' },
+        completed:     { label: 'Completed', cls: 'badge-completed' }
+    };
+
+    window.doSearch = async function() {
+        const search = document.getElementById('search-input').value.trim();
+        const status = document.getElementById('filter-status').value;
+        const dateFrom = document.getElementById('filter-date-from').value;
+        const dateTo = document.getElementById('filter-date-to').value;
+        const isAnnualInspection = document.getElementById('filter-annual').checked;
+        const isExternalOnly = document.getElementById('filter-external').checked;
+
+        const container = document.getElementById('history-list');
+        container.innerHTML = '<div class="text-center text-gray-500 py-8">Searching...</div>';
+        document.getElementById('results-info').textContent = '';
+
+        try {
+            const results = await searchWorkOrders({ search, status, dateFrom, dateTo, isAnnualInspection, isExternalOnly });
+            document.getElementById('results-info').textContent = `${results.length} result${results.length !== 1 ? 's' : ''}`;
+
+            if (results.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-500 py-12">No work orders found matching your search.</div>';
+                return;
+            }
+
+            container.innerHTML = results.map(wo => {
+                const pri = priorityConfig[wo.priority] || priorityConfig.priority_3;
+                const sta = statusConfig[wo.status] || statusConfig.new;
+                const created = wo.createdAt?.toDate ? wo.createdAt.toDate().toLocaleDateString() : (wo.date || '');
+                const completed = wo.completedAt ? new Date(wo.completedAt).toLocaleDateString() : null;
+                return `
+                <div class="bg-gray-800 rounded-xl p-4 hover:bg-gray-750 border border-gray-700 hover:border-indigo-500 cursor-pointer transition"
+                     onclick="window.location.href='new-work-order.html?id=${wo.id}'">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap mb-1">
+                                <span class="font-mono text-xs text-indigo-400 font-semibold">${wo.displayWorkOrderNumber || '#'}</span>
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${pri.cls}">${pri.label}</span>
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${sta.cls}">${sta.label}</span>
+                                ${wo.isInspection ? `<span class="text-xs bg-purple-800 text-purple-200 px-2 py-0.5 rounded-full">${wo.inspectionCategory || 'Inspection'}</span>` : ''}
+                                ${wo.isEquipmentMatch ? '<span class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded-full">Tracked Unit</span>' : ''}
+                                ${wo.externalWork ? `<span class="text-xs bg-orange-700 text-orange-100 px-2 py-0.5 rounded-full">🔧 External${wo.externalVendor ? ': ' + wo.externalVendor : ''}</span>` : ''}
+                                ${(wo.attachments?.filter(a=>a.type==='photo').length > 0) ? `<span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">📷 ${wo.attachments.filter(a=>a.type==='photo').length}</span>` : ''}
+                                ${(wo.attachments?.filter(a=>a.type==='pdf').length > 0) ? `<span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">📄 ${wo.attachments.filter(a=>a.type==='pdf').length}</span>` : ''}
+                            </div>
+                            <p class="text-white font-semibold truncate">${wo.unitOrDescription || 'No unit'}</p>
+                            <p class="text-gray-400 text-sm mt-1 line-clamp-2">${wo.cameInFor || 'No description'}</p>
+                            <div class="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
+                                <span>By: ${wo.requestedBy || '—'}</span>
+                                <span>Created: ${created}</span>
+                                ${completed ? `<span>Completed: ${completed}</span>` : ''}
+                            </div>
+                        </div>
+                        ${wo.pdfDriveLink ? `<a href="${wo.pdfDriveLink}" target="_blank" onclick="event.stopPropagation()"
+                            class="flex-shrink-0 text-xs bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-3 py-1.5 rounded-lg transition">📄 PDF</a>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        } catch(e) {
+            container.innerHTML = `<div class="text-center text-red-400 py-8">Error: ${e.message}</div>`;
+        }
+    };
+
+    window.clearFilters = function() {
+        document.getElementById('search-input').value = '';
+        document.getElementById('filter-status').value = 'all';
+        document.getElementById('filter-date-from').value = '';
+        document.getElementById('filter-date-to').value = '';
+        document.getElementById('filter-annual').checked = false;
+        document.getElementById('filter-external').checked = false;
+    };
+
+    // Auto-search on Enter
+    document.getElementById('search-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') doSearch();
+    });
+
+    // Load recent by default
+    doSearch();
+</script>
+</body>
+</html>

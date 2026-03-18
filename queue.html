@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Queue - Shop Work Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+<nav id="main-nav" class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50"></nav>
+
+<div class="max-w-5xl mx-auto p-4 md:p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-extrabold text-white">Active Queue</h1>
+            <p class="text-gray-400 text-sm mt-1">Real-time shop work orders</p>
+        </div>
+        <a href="new-work-order.html" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-lg transition text-sm flex items-center gap-2">
+            <span class="text-lg leading-none">+</span> New Work Order
+        </a>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-gray-800 rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-center">
+        <div class="flex gap-2 flex-wrap">
+            <button onclick="setFilter('all')" data-filter="all" class="filter-btn active px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-white bg-gray-700 transition">All Open</button>
+            <button onclick="setFilter('new')" data-filter="new" class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-gray-400 hover:text-white transition">New</button>
+            <button onclick="setFilter('in_progress')" data-filter="in_progress" class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-gray-400 hover:text-white transition">In Progress</button>
+            <button onclick="setFilter('waiting_parts')" data-filter="waiting_parts" class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-gray-400 hover:text-white transition">Waiting Parts</button>
+        </div>
+        <input type="text" id="queue-search" placeholder="Search queue..." class="ml-auto bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+    </div>
+
+    <!-- Queue Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5" id="stats-row">
+        <div class="bg-gray-800 rounded-xl p-4 text-center"><div class="text-2xl font-bold text-white" id="stat-total">—</div><div class="text-xs text-gray-400 mt-1">Total Open</div></div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center"><div class="text-2xl font-bold text-red-400" id="stat-p1">—</div><div class="text-xs text-gray-400 mt-1">Priority 1</div></div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center"><div class="text-2xl font-bold text-cyan-400" id="stat-inprog">—</div><div class="text-xs text-gray-400 mt-1">In Progress</div></div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center"><div class="text-2xl font-bold text-yellow-400" id="stat-waiting">—</div><div class="text-xs text-gray-400 mt-1">Waiting Parts</div></div>
+    </div>
+
+    <!-- Work Order Cards -->
+    <div id="queue-list" class="space-y-3">
+        <div class="text-center text-gray-500 py-12">Loading queue...</div>
+    </div>
+</div>
+
+<script type="module">
+    import { initFirebase } from './js/firebase-init.js';
+    import { requireAuth } from './js/auth.js';
+    import { subscribeToActiveQueue, updateWorkOrder } from './js/db.js';
+    import { renderNav } from './js/nav.js';
+
+    initFirebase();
+    renderNav('queue.html');
+    const profile = await requireAuth();
+
+    const isViewer = profile?.role === 'viewer';
+    let allOrders = [];
+    let currentFilter = 'all';
+    let searchTerm = '';
+
+    const priorityConfig = {
+        priority_1: { label: '⚡ P1 Urgent', cls: 'badge-p1' },
+        priority_2: { label: '🔶 P2 Important', cls: 'badge-p2' },
+        priority_3: { label: '🔵 P3 Normal', cls: 'badge-p3' },
+        low:        { label: '⬇️ Low', cls: 'badge-low' }
+    };
+    const statusConfig = {
+        new:           { label: 'New', cls: 'badge-new' },
+        in_progress:   { label: 'In Progress', cls: 'badge-in_progress' },
+        waiting_parts: { label: 'Waiting Parts', cls: 'badge-waiting_parts' },
+        completed:     { label: 'Completed', cls: 'badge-completed' }
+    };
+
+    function priorityOrder(p) { return { priority_1: 0, priority_2: 1, priority_3: 2, low: 3 }[p] ?? 4; }
+
+    function renderQueue() {
+        let items = [...allOrders];
+        if (currentFilter !== 'all') items = items.filter(o => o.status === currentFilter);
+        if (searchTerm) {
+            const s = searchTerm.toLowerCase();
+            items = items.filter(o =>
+                (o.unitOrDescription || '').toLowerCase().includes(s) ||
+                (o.displayWorkOrderNumber || '').toLowerCase().includes(s) ||
+                (o.issueTitle || '').toLowerCase().includes(s) ||
+                (o.requestedBy || '').toLowerCase().includes(s) ||
+                (o.cameInFor || '').toLowerCase().includes(s)
+            );
+        }
+        items.sort((a, b) => priorityOrder(a.priority) - priorityOrder(b.priority));
+
+        document.getElementById('stat-total').textContent = allOrders.length;
+        document.getElementById('stat-p1').textContent = allOrders.filter(o => o.priority === 'priority_1').length;
+        document.getElementById('stat-inprog').textContent = allOrders.filter(o => o.status === 'in_progress').length;
+        document.getElementById('stat-waiting').textContent = allOrders.filter(o => o.status === 'waiting_parts').length;
+
+        const container = document.getElementById('queue-list');
+        if (items.length === 0) {
+            container.innerHTML = `<div class="text-center text-gray-500 py-16">
+                <div class="text-5xl mb-3">✅</div>
+                <p class="text-lg font-medium">Queue is clear</p>
+                <p class="text-sm mt-1">No open work orders matching this filter</p>
+            </div>`;
+            return;
+        }
+
+        container.innerHTML = items.map(wo => {
+            const pri = priorityConfig[wo.priority] || priorityConfig.priority_3;
+            const sta = statusConfig[wo.status] || statusConfig.new;
+            const created = wo.createdAt?.toDate ? wo.createdAt.toDate().toLocaleDateString() : (wo.date || '');
+            return `
+            <div class="bg-gray-800 rounded-xl p-4 hover:bg-gray-750 transition cursor-pointer border border-gray-700 hover:border-indigo-500"
+                 onclick="window.location.href='new-work-order.html?id=${wo.id}'">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap mb-1">
+                            <span class="font-mono text-xs text-gray-400">${wo.displayWorkOrderNumber || '#'}</span>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${pri.cls}">${pri.label}</span>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${sta.cls}">${sta.label}</span>
+                            ${wo.isInspection ? '<span class="text-xs bg-purple-800 text-purple-200 px-2 py-0.5 rounded-full">Inspection</span>' : ''}
+                            ${wo.externalWork ? '<span class="text-xs bg-orange-700 text-orange-100 px-2 py-0.5 rounded-full">🔧 External</span>' : ''}
+                            ${(wo.attachments?.length > 0) ? `<span class="text-xs bg-gray-600 text-gray-200 px-2 py-0.5 rounded-full">${wo.attachments.filter(a=>a.type==='photo').length > 0 ? '📷' : ''}${wo.attachments.filter(a=>a.type==='pdf').length > 0 ? ' 📄' : ''}</span>` : ''}
+                        </div>
+                        <p class="text-white font-semibold text-base truncate">${wo.unitOrDescription || 'No unit'}</p>
+                        <p class="text-gray-400 text-sm mt-1 line-clamp-2">${wo.cameInFor || wo.issueTitle || 'No description'}</p>
+                        <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                            <span>By: ${wo.requestedBy || '—'}</span>
+                            <span>·</span>
+                            <span>${created}</span>
+                        </div>
+                    </div>
+                    ${!isViewer ? `<div class="flex flex-col gap-2 items-end flex-shrink-0">
+                        <select onclick="event.stopPropagation()" onchange="changeStatus('${wo.id}', this.value)"
+                            class="text-xs bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            <option value="new" ${wo.status==='new'?'selected':''}>New</option>
+                            <option value="in_progress" ${wo.status==='in_progress'?'selected':''}>In Progress</option>
+                            <option value="waiting_parts" ${wo.status==='waiting_parts'?'selected':''}>Waiting Parts</option>
+                            <option value="completed" ${wo.status==='completed'?'selected':''}>Completed</option>
+                        </select>
+                    </div>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    window.changeStatus = async function(id, newStatus) {
+        try {
+            await updateWorkOrder(id, { status: newStatus });
+        } catch(e) { alert('Error updating: ' + e.message); }
+    };
+
+    window.setFilter = function(filter) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(b => {
+            const isActive = b.dataset.filter === filter;
+            b.className = `filter-btn px-3 py-1.5 rounded-lg text-sm font-medium border transition ${isActive ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-gray-600 text-gray-400 hover:text-white bg-gray-700'}`;
+        });
+        renderQueue();
+    };
+
+    document.getElementById('queue-search').addEventListener('input', e => {
+        searchTerm = e.target.value;
+        renderQueue();
+    });
+
+    subscribeToActiveQueue(orders => {
+        allOrders = orders;
+        renderQueue();
+    });
+</script>
+</body>
+</html>
