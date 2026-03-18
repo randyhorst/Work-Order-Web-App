@@ -95,6 +95,13 @@ input[type="date"] { -webkit-appearance: none; appearance: none; min-height: 48p
 .badge-waiting_parts { background: #b45309; color: white; }
 .badge-completed { background: #16a34a; color: white; }
 
+/* Inspection table (on-screen preview + print) */
+.inspection-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+.inspection-table th { border-bottom: 2px solid #000; text-align: left; padding: 4px; font-weight: bold; text-transform: uppercase; }
+.inspection-table td { border-bottom: 1px solid #e5e7eb; padding: 4px; vertical-align: top; }
+.inspection-category-row td { background-color: #f3f4f6; font-weight: bold; padding: 8px; }
+.check-cell { width: 30px; text-align: center; font-family: monospace; font-size: 14px; }
+
 /* Print styles */
 @media print {
     .no-print { display: none !important; }
