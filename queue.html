@@ -54,7 +54,7 @@
     import { renderNav } from './js/nav.js';
 
     initFirebase();
-    renderNav('queue.html');
+    await renderNav('queue.html');
     const profile = await requireAuth();
 
     const isViewer = profile?.role === 'viewer';

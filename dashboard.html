@@ -69,7 +69,7 @@
     import { renderNav } from './js/nav.js';
 
     initFirebase();
-    renderNav('dashboard.html');
+    await renderNav('dashboard.html');
     await requireAuth();
 
     let equipment = [];

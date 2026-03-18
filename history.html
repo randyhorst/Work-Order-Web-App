@@ -55,7 +55,7 @@
     import { renderNav } from './js/nav.js';
 
     initFirebase();
-    renderNav('history.html');
+    await renderNav('history.html');
     await requireAuth();
 
     const priorityConfig = {

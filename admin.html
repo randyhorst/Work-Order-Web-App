@@ -136,7 +136,7 @@
     import { renderNav } from './js/nav.js';
 
     initFirebase();
-    renderNav('admin.html');
+    await renderNav('admin.html');
     const profile = await requireAuth(['admin']);
 
     // Deep copy for editing

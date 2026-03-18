@@ -243,7 +243,7 @@
     import { uploadFileToDrive, deleteFileFromDrive, isDriveConfigured } from './js/drive-storage.js';
 
     initFirebase();
-    renderNav('new-work-order.html');
+    await renderNav('new-work-order.html');
     const profile = await requireAuth();
 
     const isViewer = profile?.role === 'viewer';
