@@ -60,18 +60,53 @@
         <div id="add-equipment-form" class="hidden bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-3">
             <h3 class="text-sm font-semibold text-gray-300">Add New Equipment</h3>
             <div class="grid grid-cols-2 gap-3">
-                <input type="text" id="eq-unit" placeholder="Unit # (e.g., SVL 75-3)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <input type="text" id="eq-type" placeholder="Type (e.g., Kubota SVL)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <input type="text" id="eq-make" placeholder="Make / Model (optional)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="text" id="eq-unit" placeholder="Unit # (e.g., 05-025)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="text" id="eq-type" placeholder="Type (e.g., Truck L/D)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="text" id="eq-make" placeholder="Make / Model / Description" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="text" id="eq-serial" placeholder="Serial # (optional)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="text" id="eq-plate" placeholder="Licence Plate (optional)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <div class="flex items-center gap-3 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
                     <input type="checkbox" id="eq-requires-inspection" class="w-4 h-4 rounded accent-indigo-500" checked>
                     <label for="eq-requires-inspection" class="text-sm text-gray-300 cursor-pointer">Requires annual inspection</label>
                 </div>
                 <input type="text" id="eq-reset" placeholder="Annual reset date (e.g., Nov 1)" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <textarea id="eq-notes" placeholder="Notes (optional)" rows="2" class="col-span-2 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
             </div>
             <div class="flex gap-2">
                 <button onclick="saveEquipment()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">Save</button>
                 <button onclick="document.getElementById('add-equipment-form').classList.add('hidden')" class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2 rounded-lg text-sm transition">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Edit Equipment Modal -->
+        <div id="edit-eq-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div class="bg-gray-800 border border-gray-600 rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-2xl">
+                <h3 class="text-lg font-bold text-white">Edit Equipment</h3>
+                <input type="hidden" id="edit-eq-id">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="text-xs text-gray-400 block mb-1">Unit #</label>
+                        <input type="text" id="edit-eq-unit" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div><label class="text-xs text-gray-400 block mb-1">Type</label>
+                        <input type="text" id="edit-eq-type" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div class="col-span-2"><label class="text-xs text-gray-400 block mb-1">Make / Model / Description</label>
+                        <input type="text" id="edit-eq-make" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div><label class="text-xs text-gray-400 block mb-1">Serial #</label>
+                        <input type="text" id="edit-eq-serial" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div><label class="text-xs text-gray-400 block mb-1">Licence Plate</label>
+                        <input type="text" id="edit-eq-plate" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div class="flex items-center gap-3 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+                        <input type="checkbox" id="edit-eq-inspection" class="w-4 h-4 rounded accent-indigo-500">
+                        <label for="edit-eq-inspection" class="text-sm text-gray-300 cursor-pointer">Requires annual inspection</label>
+                    </div>
+                    <div><label class="text-xs text-gray-400 block mb-1">Reset Date</label>
+                        <input type="text" id="edit-eq-reset" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., Nov 1"></div>
+                    <div class="col-span-2"><label class="text-xs text-gray-400 block mb-1">Notes</label>
+                        <textarea id="edit-eq-notes" rows="3" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Any notes about this unit..."></textarea></div>
+                </div>
+                <div class="flex gap-2 justify-end">
+                    <button onclick="closeEditModal()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-2 rounded-lg text-sm transition">Cancel</button>
+                    <button onclick="saveEditEquipment()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition">Save Changes</button>
+                </div>
             </div>
         </div>
 
@@ -173,7 +208,7 @@
 <script type="module">
     import { initFirebase } from './js/firebase-init.js';
     import { requireAuth } from './js/auth.js';
-    import { getUsers, updateUser, addEquipment, getEquipmentList, deleteEquipment,
+    import { getUsers, updateUser, addEquipment, getEquipmentList, updateEquipment, deleteEquipment,
              createInviteCode, getCustomChecklists, saveChecklist, deleteChecklist,
              searchWorkOrders } from './js/db.js';
     import { checklists as defaultChecklists } from './js/checklists.js';
@@ -253,26 +288,6 @@
 
     // ── EQUIPMENT ──────────────────────────────────────────────
 
-    async function loadEquipment() {
-        const container = document.getElementById('equipment-list-admin');
-        try {
-            const list = await getEquipmentList();
-            if (list.length === 0) { container.innerHTML = '<p class="text-gray-500 text-sm">No equipment added yet.</p>'; return; }
-            container.innerHTML = list.map(eq => `
-                <div class="flex items-center justify-between bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
-                    <div>
-                        <p class="text-white font-semibold text-sm">${eq.unitNumber}</p>
-                        <p class="text-gray-400 text-xs">${eq.equipmentType || '—'} ${eq.makeModel ? '· ' + eq.makeModel : ''}</p>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            ${eq.requiresInspection !== false ? `<span class="text-xs text-green-400">✓ Inspection required</span>` : `<span class="text-xs text-gray-500">No inspection</span>`}
-                            ${eq.inspectionResetMonthDay && eq.requiresInspection !== false ? `<span class="text-xs text-gray-500">· Reset: ${eq.inspectionResetMonthDay}</span>` : ''}
-                        </div>
-                    </div>
-                    <button onclick="removeEquipment('${eq.id}')" class="text-red-500 hover:text-red-400 text-xs border border-red-800 hover:border-red-500 px-3 py-1.5 rounded-lg transition">Remove</button>
-                </div>`).join('');
-        } catch(e) { container.innerHTML = `<p class="text-red-400 text-sm">Error: ${e.message}</p>`; }
-    }
-
     window.showAddEquipment = function() {
         document.getElementById('add-equipment-form').classList.toggle('hidden');
     };
@@ -287,14 +302,14 @@
             unitNumber: unit,
             equipmentType: type,
             makeModel: document.getElementById('eq-make').value.trim(),
+            serialNumber: document.getElementById('eq-serial').value.trim(),
+            licensePlate: document.getElementById('eq-plate').value.trim(),
+            notes: document.getElementById('eq-notes').value.trim(),
             requiresInspection,
             inspectionResetMonthDay: requiresInspection ? resetDate : '',
             active: true
         });
-        document.getElementById('eq-unit').value = '';
-        document.getElementById('eq-type').value = '';
-        document.getElementById('eq-make').value = '';
-        document.getElementById('eq-reset').value = '';
+        ['eq-unit','eq-type','eq-make','eq-serial','eq-plate','eq-reset','eq-notes'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('eq-requires-inspection').checked = true;
         document.getElementById('add-equipment-form').classList.add('hidden');
         loadEquipment();
@@ -303,6 +318,76 @@
     window.removeEquipment = async function(id) {
         if (!confirm('Remove this equipment from the list?')) return;
         await deleteEquipment(id);
+        loadEquipment();
+    };
+
+    let _equipmentCache = [];
+
+    async function loadEquipment() {
+        const container = document.getElementById('equipment-list-admin');
+        try {
+            const list = await getEquipmentList();
+            _equipmentCache = list;
+            if (list.length === 0) { container.innerHTML = '<p class="text-gray-500 text-sm">No equipment added yet.</p>'; return; }
+            container.innerHTML = list.map(eq => `
+                <div class="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 space-y-1">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-white font-semibold text-sm font-mono">${eq.unitNumber}</span>
+                                <span class="text-gray-400 text-xs">${eq.equipmentType || ''}</span>
+                            </div>
+                            <p class="text-gray-300 text-xs mt-0.5">${eq.makeModel || ''}</p>
+                            <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                                ${eq.serialNumber ? `<span class="text-xs text-gray-500 font-mono">S/N: ${eq.serialNumber}</span>` : ''}
+                                ${eq.licensePlate ? `<span class="text-xs text-gray-500">Plate: ${eq.licensePlate}</span>` : ''}
+                                ${eq.requiresInspection !== false ? `<span class="text-xs text-green-400">✓ Inspection · ${eq.inspectionResetMonthDay || 'Nov 1'}</span>` : `<span class="text-xs text-gray-600">No inspection</span>`}
+                            </div>
+                            ${eq.notes ? `<p class="text-xs text-yellow-300/70 mt-1 italic">${eq.notes}</p>` : ''}
+                        </div>
+                        <div class="flex gap-2 flex-shrink-0">
+                            <button onclick="openEditModal('${eq.id}')" class="text-indigo-400 hover:text-indigo-300 text-xs border border-indigo-800 hover:border-indigo-500 px-3 py-1.5 rounded-lg transition">Edit</button>
+                            <button onclick="removeEquipment('${eq.id}')" class="text-red-500 hover:text-red-400 text-xs border border-red-800 hover:border-red-500 px-3 py-1.5 rounded-lg transition">Remove</button>
+                        </div>
+                    </div>
+                </div>`).join('');
+        } catch(e) { container.innerHTML = `<p class="text-red-400 text-sm">Error: ${e.message}</p>`; }
+    }
+
+    window.openEditModal = function(id) {
+        const eq = _equipmentCache.find(e => e.id === id);
+        if (!eq) return;
+        document.getElementById('edit-eq-id').value = id;
+        document.getElementById('edit-eq-unit').value = eq.unitNumber || '';
+        document.getElementById('edit-eq-type').value = eq.equipmentType || '';
+        document.getElementById('edit-eq-make').value = eq.makeModel || '';
+        document.getElementById('edit-eq-serial').value = eq.serialNumber || '';
+        document.getElementById('edit-eq-plate').value = eq.licensePlate || '';
+        document.getElementById('edit-eq-inspection').checked = eq.requiresInspection !== false;
+        document.getElementById('edit-eq-reset').value = eq.inspectionResetMonthDay || '';
+        document.getElementById('edit-eq-notes').value = eq.notes || '';
+        document.getElementById('edit-eq-modal').classList.remove('hidden');
+    };
+
+    window.closeEditModal = function() {
+        document.getElementById('edit-eq-modal').classList.add('hidden');
+    };
+
+    window.saveEditEquipment = async function() {
+        const id = document.getElementById('edit-eq-id').value;
+        if (!id) return;
+        const requiresInspection = document.getElementById('edit-eq-inspection').checked;
+        await updateEquipment(id, {
+            unitNumber: document.getElementById('edit-eq-unit').value.trim(),
+            equipmentType: document.getElementById('edit-eq-type').value.trim(),
+            makeModel: document.getElementById('edit-eq-make').value.trim(),
+            serialNumber: document.getElementById('edit-eq-serial').value.trim(),
+            licensePlate: document.getElementById('edit-eq-plate').value.trim(),
+            requiresInspection,
+            inspectionResetMonthDay: requiresInspection ? document.getElementById('edit-eq-reset').value.trim() : '',
+            notes: document.getElementById('edit-eq-notes').value.trim()
+        });
+        closeEditModal();
         loadEquipment();
     };
 
