@@ -763,7 +763,94 @@
     document.getElementById('btn-clear').addEventListener('click', clearForm);
     document.getElementById('btn-delete').addEventListener('click', deleteThisWO);
     document.getElementById('btn-back').addEventListener('click', () => { window.location.href = 'queue.html'; });
-    document.getElementById('print-btn').addEventListener('click', () => { window.print(); });
+    function buildPrintHTML() {
+        const pp = document.getElementById('print-preview');
+        const woNum = document.getElementById('report-wo-number')?.textContent || '';
+        const company = document.getElementById('report-company-name')?.textContent || '';
+        const unit = document.getElementById('report-unit')?.textContent || '';
+        const employee = document.getElementById('report-employee')?.textContent || '';
+        const date = document.getElementById('report-date')?.textContent || '';
+        const hours = document.getElementById('report-hours')?.textContent || '';
+        const km = document.getElementById('report-kilometers')?.textContent || '';
+        const priority = document.getElementById('report-priority')?.textContent || '';
+        const cameIn = document.getElementById('report-came-in-for')?.textContent || '';
+        const gotDone = document.getElementById('report-got-done')?.textContent || '';
+        const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+        const logoUrl = settings.logoUrl || '';
+
+        let inspHTML = '';
+        const inspSection = document.getElementById('report-inspection-section');
+        if (inspSection && !inspSection.classList.contains('hidden')) {
+            const title = document.getElementById('report-inspection-title')?.textContent || '';
+            const table = document.getElementById('report-inspection-container')?.innerHTML || '';
+            inspHTML = `<div style="margin-bottom:24px;"><div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #d1d5db;padding-bottom:4px;margin-bottom:12px;"><h2 style="font-size:12px;font-weight:bold;text-transform:uppercase;">Maintenance Checklist</h2><span style="font-size:11px;font-weight:bold;text-transform:uppercase;color:#6b7280;">${title}</span></div>${table}</div>`;
+        }
+
+        let photoHTML = '';
+        const photoSection = document.getElementById('report-photo-section');
+        if (photoSection && !photoSection.classList.contains('hidden')) {
+            const imgs = document.getElementById('report-photo-container')?.querySelectorAll('img') || [];
+            if (imgs.length) {
+                let imgTags = '';
+                imgs.forEach(img => { imgTags += `<img src="${img.src}" style="width:100%;height:auto;border:1px solid #e5e7eb;border-radius:4px;">`; });
+                photoHTML = `<div style="margin-bottom:24px;"><h2 style="font-size:12px;font-weight:bold;text-transform:uppercase;border-bottom:1px solid #d1d5db;padding-bottom:4px;margin-bottom:12px;">Attached Photos</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${imgTags}</div></div>`;
+            }
+        }
+
+        return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Work Order ${woNum}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#000;padding:0.5in;font-size:12px;line-height:1.4;}
+h1{font-size:22px;font-weight:bold;text-transform:uppercase;}
+.label{font-size:10px;font-weight:bold;text-transform:uppercase;color:#6b7280;}
+.val{font-size:14px;font-weight:bold;margin-top:2px;}
+.val-lg{font-size:18px;}
+.section-title{font-size:12px;font-weight:bold;text-transform:uppercase;border-bottom:1px solid #d1d5db;padding-bottom:4px;margin-bottom:10px;}
+.text-block{white-space:pre-wrap;font-size:12px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+th{border-bottom:2px solid #000;text-align:left;padding:4px;font-weight:bold;text-transform:uppercase;}
+td{border-bottom:1px solid #e5e7eb;padding:4px;vertical-align:top;}
+@page{margin:0.5in;}
+</style></head><body>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:20px;">
+<div><h1>Work Order</h1><p style="font-size:12px;color:#6b7280;margin-top:4px;">${woNum}</p></div>
+<div style="text-align:right;">${logoUrl ? `<img src="${logoUrl}" style="max-height:50px;max-width:140px;margin-left:auto;margin-bottom:4px;">` : ''}<p style="font-size:12px;font-weight:600;color:#6b7280;">${company}</p></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;">
+<div><span class="label">Unit #</span><div class="val val-lg">${unit}</div></div>
+<div><span class="label">Requested By</span><div class="val">${employee}</div></div>
+<div><span class="label">Date</span><div class="val">${date}</div></div>
+<div><span class="label">Hours / Odometer</span><div class="val">${hours}</div></div>
+<div><span class="label">Kilometers</span><div class="val">${km}</div></div>
+<div><span class="label">Priority</span><div class="val">${priority}</div></div>
+</div>
+<div style="margin-bottom:24px;"><h2 class="section-title">What It Came In For</h2><div class="text-block">${cameIn}</div></div>
+<div style="margin-bottom:24px;"><h2 class="section-title">What Got Done</h2><div class="text-block">${gotDone}</div></div>
+${inspHTML}${photoHTML}
+<div style="margin-top:auto;padding-top:16px;border-top:1px solid #d1d5db;text-align:center;"><p style="font-size:10px;color:#9ca3af;">Generated via Shop Work Order System</p></div>
+</body></html>`;
+    }
+
+    document.getElementById('print-btn').addEventListener('click', function() {
+        const btn = this;
+        btn.textContent = '⏳ Preparing...';
+        btn.disabled = true;
+        const html = buildPrintHTML();
+        let iframe = document.getElementById('print-iframe');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'print-iframe';
+            iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:0;height:0;border:none;';
+            document.body.appendChild(iframe);
+        }
+        iframe.srcdoc = html;
+        iframe.onload = function() {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            btn.textContent = '🖨️ Print / Save PDF';
+            btn.disabled = false;
+        };
+    });
     document.getElementById('btn-edit-details').addEventListener('click', showFormView);
     document.getElementById('btn-back-preview').addEventListener('click', () => { window.location.href = 'queue.html'; });
     document.getElementById('toggle-inspection').addEventListener('change', toggleInspectionUI);
