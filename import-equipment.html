@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipment Import</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-8">
+<div class="max-w-2xl mx-auto space-y-6">
+    <h1 class="text-2xl font-bold text-white">One-Time Equipment Import</h1>
+    <p class="text-gray-400 text-sm">This page imports all Pineview equipment into Firestore. Run once then delete or ignore.</p>
+    <div id="status" class="bg-gray-800 border border-gray-700 rounded-xl p-4 text-sm text-gray-300 min-h-24 font-mono whitespace-pre-wrap">Ready. Click Import to begin...</div>
+    <button id="import-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition">Import All Equipment</button>
+    <p class="text-xs text-gray-500">Safe to run multiple times — duplicate unit numbers will be skipped.</p>
+</div>
+
+<script type="module">
+import { initFirebase, getDbInstance } from './js/firebase-init.js';
+import { requireAuth } from './js/auth.js';
+import { getEquipmentList } from './js/db.js';
+import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAppSettings } from './js/app-config.js';
+
+initFirebase();
+await requireAuth();
+
+const equipment = [
+  // ── Trucks L/D ──────────────────────────────────────────────
+  { unitNumber:'05-003', equipmentType:'Truck L/D', makeModel:'2010 Dodge Ram 3500',       serialNumber:'3D73Y3CL9AG133856', licensePlate:'HP5026', requiresInspection:true },
+  { unitNumber:'05-005', equipmentType:'Truck L/D', makeModel:'2005 Ford F350',             serialNumber:'1FTWX33P35EB61906', licensePlate:'RK9903', requiresInspection:true },
+  { unitNumber:'05-006', equipmentType:'Truck L/D', makeModel:'2013 Ford F350',             serialNumber:'1FT8W3DT3DEA94715', licensePlate:'MM4010', requiresInspection:true },
+  { unitNumber:'05-007', equipmentType:'Truck L/D', makeModel:'2012 Ford F350',             serialNumber:'1FT8W3DT7CEB11677', licensePlate:'PJ1583', requiresInspection:true },
+  { unitNumber:'05-013', equipmentType:'Truck L/D', makeModel:'Jims Dodge 3500',            serialNumber:'',                  licensePlate:'',       requiresInspection:true },
+  { unitNumber:'05-016', equipmentType:'Truck L/D', makeModel:'2011 Dodge 3500',            serialNumber:'3D73Y3CL5BG577005', licensePlate:'NK3083', requiresInspection:true },
+  { unitNumber:'05-017', equipmentType:'Truck L/D', makeModel:'2016 Dodge 3500',            serialNumber:'3C63R3HLXGG241628', licensePlate:'RK9905', requiresInspection:true },
+  { unitNumber:'05-018', equipmentType:'Truck L/D', makeModel:'2016 Dodge 3500',            serialNumber:'3C63R3HL9GG241622', licensePlate:'RK9906', requiresInspection:true },
+  { unitNumber:'05-019', equipmentType:'Truck L/D', makeModel:'2018 Dodge 3500 (Randy)',    serialNumber:'3C63R3HL8JG200745', licensePlate:'',       requiresInspection:true },
+  { unitNumber:'05-020', equipmentType:'Truck L/D', makeModel:'2020 Dodge 3500 (Mike)',     serialNumber:'3C63R3HL3LG271614', licensePlate:'',       requiresInspection:true },
+  { unitNumber:'05-021', equipmentType:'Truck L/D', makeModel:'2023 Ford F350',             serialNumber:'1FT8X3BTXPED38493', licensePlate:'',       requiresInspection:true },
+  { unitNumber:'05-022', equipmentType:'Truck L/D', makeModel:'2023 Ford F350',             serialNumber:'1FT8X3BTXPED38204', licensePlate:'',       requiresInspection:true },
+  { unitNumber:'05-023', equipmentType:'Truck L/D', makeModel:'2026 GMC 3500',              serialNumber:'1GT4UTEY9TF149630', licensePlate:'KG6984', requiresInspection:true },
+  { unitNumber:'05-024', equipmentType:'Truck L/D', makeModel:'2026 Chevrolet 3500',        serialNumber:'1GC4KTEY2TF124249', licensePlate:'VS1358', requiresInspection:true },
+  // ── Trucks H/D ──────────────────────────────────────────────
+  { unitNumber:'10-002', equipmentType:'Truck H/D', makeModel:'2008 Sterling Bullet 4400',  serialNumber:'3F6WK66A88G353293', licensePlate:'FG4809', requiresInspection:true },
+  { unitNumber:'10-003', equipmentType:'Truck H/D', makeModel:'Single Axle Kenworth (Lil Kenny)', serialNumber:'3BKMHD7X4YF838491', licensePlate:'FE5614', requiresInspection:true },
+  { unitNumber:'10-011', equipmentType:'Truck H/D', makeModel:'2022 Ford F550',             serialNumber:'1FD0W5HT5NEF16712', licensePlate:'',       requiresInspection:true },
+  { unitNumber:'10-012', equipmentType:'Truck H/D', makeModel:'Kenworth Hydroseeder 400',   serialNumber:'936530',            licensePlate:'',       requiresInspection:true },
+  { unitNumber:'10-013', equipmentType:'Truck H/D', makeModel:'Freightliner Hydroseeder 300', serialNumber:'1FYHA6CK07LY24481', licensePlate:'',     requiresInspection:true },
+  { unitNumber:'10-015', equipmentType:'Truck H/D', makeModel:'Kenworth Hydroseeder 1700 T800B', serialNumber:'951675',       licensePlate:'',       requiresInspection:true },
+  { unitNumber:'10-016', equipmentType:'Truck H/D', makeModel:'Kenworth Water Truck T800',  serialNumber:'S927033',           licensePlate:'',       requiresInspection:true },
+  // ── Hydroseeders ────────────────────────────────────────────
+  { unitNumber:'11-001', equipmentType:'Hydroseeder', makeModel:'Turfmaker 700',            serialNumber:'7H14001',           licensePlate:'',       requiresInspection:true },
+  { unitNumber:'11-002', equipmentType:'Hydroseeder', makeModel:'Turfmaker 1200',           serialNumber:'w09001',            licensePlate:'',       requiresInspection:true },
+  { unitNumber:'11-003', equipmentType:'Hydroseeder', makeModel:'Finn 1700 T170',           serialNumber:'SL-2154',           licensePlate:'',       requiresInspection:true },
+  { unitNumber:'11-004', equipmentType:'Hydroseeder', makeModel:'Finn 3000 T330-29A',       serialNumber:'MMA-1960',          licensePlate:'',       requiresInspection:true },
+  { unitNumber:'11-005', equipmentType:'Hydroseeder', makeModel:'Finn 400 Titan 400-01',    serialNumber:'SN-1700',           licensePlate:'',       requiresInspection:true },
+  // ── Equipment ───────────────────────────────────────────────
+  { unitNumber:'15-004', equipmentType:'Equipment',   makeModel:'TS110 NH Sideboom Mower',  serialNumber:'618330',            licensePlate:'',       requiresInspection:true },
+  { unitNumber:'15-012', equipmentType:'Equipment',   makeModel:'2024 Kubota SVL75-3 Skidsteer', serialNumber:'KBCZ053CHR1J30458', licensePlate:'',  requiresInspection:true },
+  { unitNumber:'15-014', equipmentType:'Equipment',   makeModel:'2019 Kubota SVL95-2 Skidsteer', serialNumber:'KBCC0953AK1F47983', licensePlate:'X80069', requiresInspection:true },
+  { unitNumber:'15-015', equipmentType:'Equipment',   makeModel:'2011 New Holland T7270 Tractor', serialNumber:'ZBBZ09745',    licensePlate:'X80068', requiresInspection:true },
+  // ── Attachments ─────────────────────────────────────────────
+  { unitNumber:'16-001', equipmentType:'Attachment',  makeModel:'T270 HLA Snow Blade SB400012',        serialNumber:'25202129',    licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-002', equipmentType:'Attachment',  makeModel:'8FT Skidsteer HLA Snow Wing Blade',   serialNumber:'19202846',    licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-003', equipmentType:'Attachment',  makeModel:'Skidsteer HLA Snow Wing Blade',       serialNumber:'21LA53645',   licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-004', equipmentType:'Attachment',  makeModel:'7FT Skidsteer HLA Snow Wingblade',    serialNumber:'156661',      licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-005', equipmentType:'Attachment',  makeModel:'10FT Skidsteer HLA Snow Blade',       serialNumber:'',            licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-006', equipmentType:'Attachment',  makeModel:'Skidsteer Snow Bucket Kubota',        serialNumber:'1151300K',    licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-007', equipmentType:'Attachment',  makeModel:'8FT Skidsteer Snow Bucket Old',       serialNumber:'',            licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-008', equipmentType:'Attachment',  makeModel:'Skidsteer Gravel Bucket 84" HD Bobcat', serialNumber:'7125917',   licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-009', equipmentType:'Attachment',  makeModel:'Skidsteer Snow Blower 2410XL',        serialNumber:'1051454',     licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-010', equipmentType:'Attachment',  makeModel:'Bobcat Pallet Fork HD',               serialNumber:'A7DD06970',   licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-012', equipmentType:'Attachment',  makeModel:'10FT Skidsteer Bobcat Snow Blade 96"', serialNumber:'683804584',  licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-013', equipmentType:'Attachment',  makeModel:'Skidsteer Brush Mower Big City',      serialNumber:'1160334',     licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-014', equipmentType:'Attachment',  makeModel:'Skidsteer Mulch Head 500HD Gyrotrack', serialNumber:'',           licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-015', equipmentType:'Attachment',  makeModel:'Skidsteer Drill Seeder Kubota PS2086', serialNumber:'1064097K',   licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-016', equipmentType:'Attachment',  makeModel:'Skidsteer Soil Conditioner Bobcat 84SCH', serialNumber:'A61G00937', licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-017', equipmentType:'Attachment',  makeModel:'Skidsteer Cultivator ABI',            serialNumber:'103148',      licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-018', equipmentType:'Attachment',  makeModel:'Skidsteer Roller Packer',             serialNumber:'',            licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-019', equipmentType:'Attachment',  makeModel:'Skidsteer Tree Spade',                serialNumber:'',            licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-020', equipmentType:'Attachment',  makeModel:'12" Skidsteer Hole Auger 30C',        serialNumber:'944507844',   licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-021', equipmentType:'Attachment',  makeModel:'Skidsteer Stone Fork SFR77B',         serialNumber:'12LA26135',   licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-022', equipmentType:'Attachment',  makeModel:'Skidsteer Brushcat Mower Bobcat 72X', serialNumber:'A01C00434',   licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-023', equipmentType:'Attachment',  makeModel:'Skidsteer Mower',                     serialNumber:'',            licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-024', equipmentType:'Attachment',  makeModel:'Skidsteer 6-way Dozer Blade Bobcat DOZER96', serialNumber:'224401236', licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-025', equipmentType:'Attachment',  makeModel:'7FT Skidsteer Sweeper Virnig',        serialNumber:'116780',      licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-026', equipmentType:'Attachment',  makeModel:'8FT Skidsteer Box Scraper',           serialNumber:'',            licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-027', equipmentType:'Attachment',  makeModel:'TS110 NH Sideboom Mower',             serialNumber:'618330',      licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-028', equipmentType:'Attachment',  makeModel:'15FT Schulte Mower FX180',            serialNumber:'C18000108910', licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-029', equipmentType:'Attachment',  makeModel:'Degelman Sidearm SA1820',             serialNumber:'1225',        licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-030', equipmentType:'Attachment',  makeModel:'Western Tornado Sander 2.5CU YD',     serialNumber:'2282630196878006-1', licensePlate:'', requiresInspection:false },
+  { unitNumber:'16-031', equipmentType:'Attachment',  makeModel:'Western Truck Snow Blade 8.5 Pro Plus', serialNumber:'18080110987176974', licensePlate:'', requiresInspection:false },
+  // ── Trailers ────────────────────────────────────────────────
+  { unitNumber:'20-001', equipmentType:'Trailer',     makeModel:'Rainbow Trailer',                     serialNumber:'2R9CE16266165167', licensePlate:'46272D', requiresInspection:false },
+  { unitNumber:'20-002', equipmentType:'Trailer',     makeModel:'Darco Trailer Steamer',               serialNumber:'2D9FSC2B84R108783', licensePlate:'46027D', requiresInspection:false },
+  { unitNumber:'20-004', equipmentType:'Trailer',     makeModel:'U-Built Trailer',                     serialNumber:'2BG7051466U719570', licensePlate:'46271D', requiresInspection:false },
+  { unitNumber:'20-005', equipmentType:'Trailer',     makeModel:'Gooseneck Wardhaul Flatdeck',         serialNumber:'2W9LS62745K066662', licensePlate:'46030D', requiresInspection:false },
+  { unitNumber:'20-006', equipmentType:'Trailer',     makeModel:'2009 Trailtech Trailer',              serialNumber:'2CU4BARL092026611', licensePlate:'89508D', requiresInspection:false },
+  { unitNumber:'20-007', equipmentType:'Trailer',     makeModel:'CJAY Covered Trailer 2009',           serialNumber:'2JAAE772091001292', licensePlate:'46024D', requiresInspection:false },
+  { unitNumber:'20-009', equipmentType:'Trailer',     makeModel:'Gooseneck Mustang Trailer',           serialNumber:'2M9FD7296A1142486', licensePlate:'46266D', requiresInspection:false },
+  { unitNumber:'20-010', equipmentType:'Trailer',     makeModel:'U-Built Trailer',                     serialNumber:'2BG7051486U719571', licensePlate:'46026D', requiresInspection:false },
+  { unitNumber:'20-011', equipmentType:'Trailer',     makeModel:'U-Built Trailer',                     serialNumber:'2BG9032449U920724', licensePlate:'46267D', requiresInspection:false },
+  { unitNumber:'20-012', equipmentType:'Trailer',     makeModel:'U-Built Trailer',                     serialNumber:'2BG9032469U920725', licensePlate:'46268D', requiresInspection:false },
+  { unitNumber:'20-013', equipmentType:'Trailer',     makeModel:'2014 Gooseneck Trailtech Flatdeck',   serialNumber:'2CUDBARLXE2033978', licensePlate:'32121U', requiresInspection:false },
+  { unitNumber:'20-016', equipmentType:'Trailer',     makeModel:'2014 Cargomate Covered Freedom',      serialNumber:'5NHUEH226ET447189', licensePlate:'WER95L', requiresInspection:false },
+  { unitNumber:'20-017', equipmentType:'Trailer',     makeModel:'2024 Forest River Covered Trailer',   serialNumber:'5NHUVH623SF734736', licensePlate:'',       requiresInspection:false },
+  { unitNumber:'20-018', equipmentType:'Trailer',     makeModel:'Gooseneck Mustang Tilt',              serialNumber:'2M9FD729681142269', licensePlate:'',       requiresInspection:false },
+  { unitNumber:'20-019', equipmentType:'Trailer',     makeModel:'2023 Triaxle Carhauler',              serialNumber:'2SFHL4463P1080798', licensePlate:'',       requiresInspection:false },
+  // ── UTV / Zero Turn ─────────────────────────────────────────
+  { unitNumber:'25-001', equipmentType:'UTV/ZeroTurn', makeModel:'2003 Honda TRX400FW3',               serialNumber:'478TE202334400300', licensePlate:'',       requiresInspection:true },
+  { unitNumber:'25-002', equipmentType:'UTV/ZeroTurn', makeModel:'2004 Honda ATV',                     serialNumber:'478TF226544501713', licensePlate:'',       requiresInspection:true },
+  { unitNumber:'25-003', equipmentType:'UTV/ZeroTurn', makeModel:'2009 Yamaha Grizzly',                serialNumber:'09YFM7FGPYL4747',   licensePlate:'',       requiresInspection:true },
+  { unitNumber:'25-008', equipmentType:'UTV/ZeroTurn', makeModel:'JD Diesel Gator',                    serialNumber:'MOHP4DX061032',     licensePlate:'',       requiresInspection:true },
+  { unitNumber:'25-011', equipmentType:'UTV/ZeroTurn', makeModel:'2013 JD 825E Gas XUV',               serialNumber:'1M0825GEPDM067708', licensePlate:'08454X', requiresInspection:true },
+  { unitNumber:'25-012', equipmentType:'UTV/ZeroTurn', makeModel:'2013 JD 825E Gas XUV',               serialNumber:'1M0825GEEDM066134', licensePlate:'08453X', requiresInspection:true },
+  { unitNumber:'25-013', equipmentType:'UTV/ZeroTurn', makeModel:'2013 JD 825E Gas XUV',               serialNumber:'1M0825GELFM101366', licensePlate:'08455X', requiresInspection:true },
+  { unitNumber:'25-014', equipmentType:'UTV/ZeroTurn', makeModel:'2013 JD 825E Gas XUV',               serialNumber:'1M0825GEHFM101367', licensePlate:'08456X', requiresInspection:true },
+  { unitNumber:'25-015', equipmentType:'UTV/ZeroTurn', makeModel:'2013 JD 825E Gas XUV',               serialNumber:'1M0825GEEFM101368', licensePlate:'08457X', requiresInspection:true },
+  { unitNumber:'25-016', equipmentType:'UTV/ZeroTurn', makeModel:'2014 JD 825E Gas XUV',               serialNumber:'1M0825GEAFM101544', licensePlate:'08459X', requiresInspection:true },
+  { unitNumber:'25-017', equipmentType:'UTV/ZeroTurn', makeModel:'2014 JD 825E Gas XUV',               serialNumber:'1M0825GEEFM101533', licensePlate:'08458X', requiresInspection:true },
+  { unitNumber:'25-018', equipmentType:'UTV/ZeroTurn', makeModel:'2024 Can Am Gas UTV',                serialNumber:'3JBUKAP41RK003766', licensePlate:'28916X', requiresInspection:true },
+  { unitNumber:'25-019', equipmentType:'UTV/ZeroTurn', makeModel:'2024 Can Am Gas UTV',                serialNumber:'3JBUKAP40RK006676', licensePlate:'28915X', requiresInspection:true },
+  { unitNumber:'25-020', equipmentType:'UTV/ZeroTurn', makeModel:'2024 Can Am Gas UTV',                serialNumber:'3JBUKAP44RK003468', licensePlate:'28917X', requiresInspection:true },
+  { unitNumber:'25-021', equipmentType:'UTV/ZeroTurn', makeModel:'2023 Can Am Gas UTV',                serialNumber:'3JBUGAP40PK005412', licensePlate:'28788X', requiresInspection:true },
+  { unitNumber:'25-022', equipmentType:'UTV/ZeroTurn', makeModel:'2023 Can Am Gas UTV',                serialNumber:'3JBUGAP44PK003890', licensePlate:'28787X', requiresInspection:true },
+  { unitNumber:'25-023', equipmentType:'UTV/ZeroTurn', makeModel:'2025 Can Am Gas UTV 6x6',            serialNumber:'3JB6VAX44SK000351', licensePlate:'28914X', requiresInspection:true },
+  { unitNumber:'25-024', equipmentType:'UTV/ZeroTurn', makeModel:'2024 Can Am Gas UTV 6 Seat',         serialNumber:'3JBUCAX46PK003143', licensePlate:'98913X', requiresInspection:true },
+  { unitNumber:'25-025', equipmentType:'UTV/ZeroTurn', makeModel:'JD Zero Turn Sprayer Eztrack Z445c', serialNumber:'M0Z445C012062',     licensePlate:'',       requiresInspection:true },
+  // ── Drones ──────────────────────────────────────────────────
+  { unitNumber:'35-001', equipmentType:'Drone',        makeModel:'T50-001 2024 3WWDZ-40B',             serialNumber:'1581F6BUB243S0012MZZ', licensePlate:'',    requiresInspection:false },
+  { unitNumber:'35-002', equipmentType:'Drone',        makeModel:'T50-002 2024 3WWDZ-40B',             serialNumber:'1581F6BUB2466001GXQC', licensePlate:'',    requiresInspection:false },
+  { unitNumber:'35-003', equipmentType:'Drone',        makeModel:'DJI Matrice M300',                   serialNumber:'1ZN3L4D00SK0H2',       licensePlate:'',    requiresInspection:false },
+  { unitNumber:'35-004', equipmentType:'Drone',        makeModel:'Mavic 3 M',                          serialNumber:'1581F5FKC244V00DK235', licensePlate:'',    requiresInspection:false },
+  // ── RTK Base Stations ───────────────────────────────────────
+  { unitNumber:'36-001', equipmentType:'RTK Base Station', makeModel:'RTK1',                           serialNumber:'359BM3W001004E',        licensePlate:'',   requiresInspection:false },
+  { unitNumber:'36-002', equipmentType:'RTK Base Station', makeModel:'RTK2',                           serialNumber:'359BM4S00100ZU',        licensePlate:'',   requiresInspection:false },
+  // ── Cameras ─────────────────────────────────────────────────
+  { unitNumber:'37-001', equipmentType:'Camera',       makeModel:'DJI L2',                             serialNumber:'6U3DN6H005YW6W',        licensePlate:'',   requiresInspection:false },
+  { unitNumber:'37-002', equipmentType:'Camera',       makeModel:'DJI P1',                             serialNumber:'3XMDM470014Y96',        licensePlate:'',   requiresInspection:false },
+  { unitNumber:'37-003', equipmentType:'Camera',       makeModel:'Aerial Ogi Camera',                  serialNumber:'104',                   licensePlate:'',   requiresInspection:false },
+  { unitNumber:'37-004', equipmentType:'Camera',       makeModel:'DJI H30T',                           serialNumber:'6WHDMC3003G7VY',        licensePlate:'',   requiresInspection:false },
+  { unitNumber:'37-005', equipmentType:'Camera',       makeModel:'Handheld Thermal Camera TG165-X',    serialNumber:'8751087532',            licensePlate:'',   requiresInspection:false },
+  { unitNumber:'37-006', equipmentType:'Camera',       makeModel:'Ogi Lattitude 7230 Rugged Tablet',   serialNumber:'667F018E-C8E-4259-99DA-C21B6A28B8BB', licensePlate:'', requiresInspection:false },
+  // ── Drone Generators ────────────────────────────────────────
+  { unitNumber:'38-001', equipmentType:'Drone Generator', makeModel:'Firman 15000 P12002',             serialNumber:'SN5409002862P12002',    licensePlate:'',   requiresInspection:false },
+  { unitNumber:'38-002', equipmentType:'Drone Generator', makeModel:'Procore 15000 DG15000E',          serialNumber:'DG15000E23060029',      licensePlate:'',   requiresInspection:false },
+];
+
+const statusEl = document.getElementById('status');
+
+document.getElementById('import-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('import-btn');
+    btn.disabled = true;
+    btn.textContent = 'Importing...';
+    statusEl.textContent = '';
+
+    try {
+        const db = getDbInstance();
+        const settings = getAppSettings();
+        const companyId = settings.companyId;
+        if (!companyId) { statusEl.textContent = 'ERROR: No Company ID in settings. Go to Settings first.'; btn.disabled = false; btn.textContent = 'Import All Equipment'; return; }
+
+        // Get existing unit numbers to skip duplicates
+        const existing = await getEquipmentList();
+        const existingUnits = new Set(existing.map(e => e.unitNumber));
+
+        let added = 0, skipped = 0;
+        const col = collection(db, 'companies', companyId, 'equipment');
+
+        for (const eq of equipment) {
+            if (existingUnits.has(eq.unitNumber)) {
+                statusEl.textContent += `SKIP  ${eq.unitNumber} — already exists\n`;
+                skipped++;
+                continue;
+            }
+            await addDoc(col, {
+                ...eq,
+                inspectionResetMonthDay: eq.requiresInspection ? 'Nov 1' : '',
+                active: true,
+                createdAt: serverTimestamp()
+            });
+            statusEl.textContent += `OK    ${eq.unitNumber} — ${eq.makeModel}\n`;
+            added++;
+        }
+
+        statusEl.textContent += `\n✓ Done. ${added} added, ${skipped} skipped.\n`;
+        btn.textContent = `✓ Import complete (${added} added)`;
+    } catch(e) {
+        statusEl.textContent += `\nERROR: ${e.message}`;
+        btn.disabled = false;
+        btn.textContent = 'Retry Import';
+    }
+});
+</script>
+</body>
+</html>
