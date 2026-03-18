@@ -502,7 +502,7 @@
 
     function syncFromDOM() {
         Object.keys(editableChecklists).forEach(key => {
-            const nameInput = document.querySelector(`#cl-block-${key} > div:first-child input[type="text"]`);
+            const nameInput = document.getElementById(`cl-name-${key}`);
             if (nameInput) editableChecklists[key].name = nameInput.value;
             editableChecklists[key].sections.forEach((section, secIdx) => {
                 const secTitle = document.querySelector(`#sec-title-${key}-${secIdx}`);
@@ -623,10 +623,18 @@
         statusEl.textContent = 'Saving...';
         statusEl.className = 'text-sm h-5 text-center text-gray-400';
         try {
-            for (const [key, data] of Object.entries(editableChecklists)) {
+            const entries = Object.entries(editableChecklists);
+            console.log('[Checklist Save] Saving', entries.length, 'types:', entries.map(([k,v]) => `${k}: "${v.name}"`));
+            for (const [key, data] of entries) {
                 await saveChecklist(key, data);
             }
-            statusEl.textContent = '✓ Checklists saved! Workers will see updates on next load.';
+            // Reload from Firestore to confirm persistence
+            const verified = await getCustomChecklists();
+            if (verified) {
+                editableChecklists = JSON.parse(JSON.stringify(verified));
+                renderChecklistEditor();
+            }
+            statusEl.textContent = '✓ Saved & verified! ' + entries.length + ' checklist type(s).';
             statusEl.className = 'text-sm h-5 text-center text-green-400';
             setTimeout(() => { statusEl.textContent = ''; }, 4000);
         } catch(e) {
