@@ -45,10 +45,20 @@
     import { registerUser } from './js/auth.js';
     import { validateInviteCode, markInviteCodeUsed } from './js/db.js';
 
+    // Bootstrap Firebase config from invite link if present (?cfg=base64payload)
+    const params = new URLSearchParams(window.location.search);
+    const cfgParam = params.get('cfg');
+    if (cfgParam) {
+        try {
+            const payload = JSON.parse(atob(cfgParam));
+            if (payload.fbCfg) localStorage.setItem('shopAppFirebaseConfig', payload.fbCfg);
+            if (payload.appSettings) localStorage.setItem('shopAppSettings', payload.appSettings);
+        } catch(e) { console.warn('Could not parse cfg param', e); }
+    }
+
     initFirebase();
 
     // Auto-fill invite code if arriving via invite link (?invite=XXXXXXXX)
-    const params = new URLSearchParams(window.location.search);
     const inviteParam = params.get('invite');
     if (inviteParam) {
         document.getElementById('reg-invite').value = inviteParam.toUpperCase();

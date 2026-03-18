@@ -267,7 +267,11 @@
             const role = document.getElementById('invite-role').value;
             const code = await createInviteCode(role, profile.uid);
             const baseUrl = window.location.href.replace('admin.html', '');
-            const link = `${baseUrl}register.html?invite=${code}`;
+            // Embed firebase config + settings so new users can initialize Firebase on register page
+            const fbCfg = localStorage.getItem('shopAppFirebaseConfig') || '{}';
+            const appSettings = localStorage.getItem('shopAppSettings') || '{}';
+            const payload = btoa(JSON.stringify({ fbCfg, appSettings }));
+            const link = `${baseUrl}register.html?invite=${code}&cfg=${payload}`;
             document.getElementById('invite-code-display').textContent = code;
             const linkEl = document.getElementById('invite-link-display');
             linkEl.textContent = link;
