@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>New Work Order</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#111827">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
@@ -21,6 +26,12 @@
             <p id="wo-number-display" class="text-indigo-400 text-sm mt-1 font-mono hidden"></p>
             <p id="edit-mode-badge" class="hidden mt-2 inline-block bg-yellow-600 text-white text-xs font-bold px-3 py-1 rounded-full">EDITING EXISTING WORK ORDER</p>
         </header>
+
+        <div id="back-btn-row" class="hidden mb-4">
+            <button id="btn-back" class="flex items-center gap-2 py-2 px-4 rounded-lg text-sm font-medium text-gray-300 hover:text-white bg-gray-800 border border-gray-600 hover:border-indigo-500 transition">
+                ← Back to Queue
+            </button>
+        </div>
 
         <div class="bg-gray-800 p-6 md:p-8 rounded-xl shadow-2xl space-y-6">
 
@@ -154,11 +165,6 @@
             </div>
 
             <!-- Action Buttons -->
-            <div id="back-btn-row" class="hidden pt-4">
-                <button id="btn-back" class="w-full flex justify-center py-3 px-4 border-2 border-gray-500 rounded-lg shadow-lg text-base font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 transition">
-                    ← Back to Queue
-                </button>
-            </div>
             <div class="pt-4 grid grid-cols-2 gap-4">
                 <button id="btn-save" class="flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-base font-medium text-white bg-gray-600 hover:bg-gray-500 transition">
                     💾 Save
@@ -250,7 +256,7 @@
 <script type="module">
     import { initFirebase } from './js/firebase-init.js';
     import { requireAuth, getCurrentUserProfile } from './js/auth.js';
-    import { createWorkOrder, updateWorkOrder, deleteWorkOrder, getWorkOrder, matchEquipment, getCustomChecklists } from './js/db.js';
+    import { createWorkOrder, updateWorkOrder, deleteWorkOrder, getWorkOrder, matchEquipment, getCustomChecklists, getOpenWorkOrdersForUnit } from './js/db.js';
     import { checklists as defaultChecklists, renderChecklist, extractChecklistData, buildChecklistTableHTML } from './js/checklists.js';
     import { renderNav } from './js/nav.js';
     import { uploadFileToDrive, deleteFileFromDrive, isDriveConfigured } from './js/drive-storage.js';
@@ -439,14 +445,14 @@
         container.addEventListener('input', triggerAutoSave);
     }
 
-    // Unit matching
+    // Unit matching + duplicate check
     let matchTimeout;
     document.getElementById('unit-number').addEventListener('input', () => {
         clearTimeout(matchTimeout);
         matchTimeout = setTimeout(async () => {
             const val = document.getElementById('unit-number').value.trim();
             const label = document.getElementById('unit-match-label');
-            if (!val) { label.classList.add('hidden'); matchedEquipmentId = null; return; }
+            if (!val) { label.classList.add('hidden'); matchedEquipmentId = null; removeDuplicateWarning(); return; }
             const match = await matchEquipment(val);
             if (match) {
                 matchedEquipmentId = match.id;
@@ -459,8 +465,39 @@
                 label.className = 'text-xs mt-1 text-yellow-500';
                 label.classList.remove('hidden');
             }
+            // Duplicate unit check (only for new WOs, not when editing)
+            if (!editId) {
+                try {
+                    const openWOs = await getOpenWorkOrdersForUnit(val);
+                    if (openWOs.length > 0) {
+                        showDuplicateWarning(val, openWOs);
+                    } else {
+                        removeDuplicateWarning();
+                    }
+                } catch(e) { console.warn('Duplicate check failed:', e); }
+            }
         }, 600);
     });
+
+    function showDuplicateWarning(unit, openWOs) {
+        removeDuplicateWarning();
+        const banner = document.createElement('div');
+        banner.id = 'duplicate-unit-warning';
+        banner.className = 'bg-yellow-900 border border-yellow-600 rounded-lg p-3 mt-2 space-y-1';
+        const links = openWOs.map(wo =>
+            `<a href="new-work-order.html?id=${wo.id}" class="text-yellow-300 underline text-xs">${wo.displayWorkOrderNumber || wo.id} (${wo.status?.replace('_', ' ')})</a>`
+        ).join(', ');
+        banner.innerHTML = `
+            <p class="text-yellow-300 text-sm font-semibold">⚠️ "${unit}" already has ${openWOs.length} open work order${openWOs.length > 1 ? 's' : ''}:</p>
+            <p class="text-xs text-yellow-400">${links}</p>
+            <p class="text-xs text-gray-400">You can still create a new one if needed.</p>
+        `;
+        document.getElementById('unit-match-label').after(banner);
+    }
+
+    function removeDuplicateWarning() {
+        document.getElementById('duplicate-unit-warning')?.remove();
+    }
 
     // Photo handling — uploads to Google Drive if configured, otherwise stores as local dataUrl
     document.getElementById('photo-upload').addEventListener('change', async function(e) {

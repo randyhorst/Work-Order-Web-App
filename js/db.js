@@ -73,6 +73,18 @@ export async function getWorkOrder(workOrderId) {
     return { id: snap.id, ...snap.data() };
 }
 
+export async function getOpenWorkOrdersForUnit(unitNumber) {
+    const db = getDbInstance();
+    const companyId = getCompanyId();
+    const q = query(
+        collection(db, 'companies', companyId, 'workOrders'),
+        where('status', 'in', ['new', 'in_progress', 'waiting_parts', 'waiting_randy']),
+        where('unitOrDescription', '==', unitNumber)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
 export async function getActiveWorkOrders() {
     const db = getDbInstance();
     const companyId = getCompanyId();
