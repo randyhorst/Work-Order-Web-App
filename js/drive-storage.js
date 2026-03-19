@@ -109,13 +109,14 @@ async function makePublic(fileId, token) {
 }
 
 function buildDriveMeta(fileMeta) {
+    const id = fileMeta.id;
     return {
-        id: fileMeta.id,
+        id,
         name: fileMeta.name,
         mimeType: fileMeta.mimeType,
         size: parseInt(fileMeta.size || 0),
-        webViewLink: fileMeta.webViewLink,
-        webContentLink: `https://drive.google.com/uc?export=view&id=${fileMeta.id}`
+        webViewLink: fileMeta.webViewLink || `https://drive.google.com/file/d/${id}/view`,
+        webContentLink: `https://drive.google.com/uc?export=view&id=${id}`
     };
 }
 
@@ -152,6 +153,7 @@ async function uploadToDrive({ blob, name, mimeType, parentId }) {
     }
 
     const fileMeta = await uploadRes.json();
+    console.log('[Drive] upload raw response:', JSON.stringify(fileMeta));
     await makePublic(fileMeta.id, token);
     return buildDriveMeta(fileMeta);
 }
@@ -184,16 +186,19 @@ export async function ensureUnitFolder(unitNumber) {
             'https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name',
             { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
         );
+        const rText = await r.text();
+        console.log('[Drive] createFolder', name, 'in', parentId || 'root', '->', r.status, rText);
         if (!r.ok) return null;
-        return await r.json();
+        return JSON.parse(rText);
     }
 
     // 1. Try configured parent folder
     if (configuredParent) {
+        console.log('[Drive] trying configured parent:', configuredParent);
         const existing = await findFolder(configuredParent);
-        if (existing) return existing;
+        if (existing) { console.log('[Drive] found existing unit folder:', existing.id); return existing; }
         const created = await createFolder(folderName, configuredParent);
-        if (created) return created;
+        if (created) { console.log('[Drive] created unit folder in configured parent:', created.id); return created; }
         console.warn('[Drive] Configured folder failed, falling back to app-created folder');
     }
 
