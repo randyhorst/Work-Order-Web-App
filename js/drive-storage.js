@@ -17,9 +17,9 @@
 import { getItem, getItemAsync } from './storage.js';
 
 const SETTINGS_KEY = 'shopAppSettings';
-const SCOPE = 'https://www.googleapis.com/auth/drive.file';
-const TOKEN_KEY = 'shopDriveAccessToken';
-const TOKEN_EXPIRY_KEY = 'shopDriveAccessTokenExpiry';
+const SCOPE = 'https://www.googleapis.com/auth/drive';
+const TOKEN_KEY = 'shopDriveAccessToken_v2';
+const TOKEN_EXPIRY_KEY = 'shopDriveAccessTokenExpiry_v2';
 
 let _accessToken = null;
 let _tokenClient = null;
@@ -180,9 +180,8 @@ export async function ensureUnitFolder(unitNumber) {
         const errBody = await parentCheckRes.json().catch(() => ({}));
         console.warn('[Drive] Configured folder not accessible:', parentCheckRes.status, errBody?.error?.message);
         if (parentCheckRes.status === 404 || parentCheckRes.status === 403) {
-            // Fall back to root — at least the upload succeeds
-            console.warn('[Drive] Falling back to root Drive folder for upload.');
-            effectiveParentId = 'root';
+            console.error('[Drive] Folder not found/accessible. Folder ID:', driveFolderId, 'Status:', parentCheckRes.status, errBody?.error?.message);
+            throw new Error(`Drive folder not found (${driveFolderId}). Check Settings → Google Drive Folder ID, or make sure you added this app's OAuth scope to 'drive' (not 'drive.file').`);
         } else {
             throw new Error(errBody?.error?.message || `Drive parent folder check failed (${parentCheckRes.status})`);
         }
