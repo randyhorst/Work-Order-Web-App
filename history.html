@@ -60,8 +60,7 @@
     import { renderNav } from './js/nav.js';
 
     initFirebase();
-    await renderNav('history.html');
-    await requireAuth();
+    await Promise.all([renderNav('history.html'), requireAuth()]);
 
     const priorityConfig = {
         priority_1: { label: 'P1 Urgent', cls: 'badge-p1' },

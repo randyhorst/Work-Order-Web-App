@@ -9,6 +9,9 @@
     <meta name="theme-color" content="#111827">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon.svg">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
@@ -55,14 +58,14 @@
 
 <script type="module">
     import { initFirebase } from './js/firebase-init.js';
-    import { requireAuth } from './js/auth.js';
+    import { requireAuth, getCurrentUserProfile } from './js/auth.js';
     import { subscribeToActiveQueue, updateWorkOrder } from './js/db.js';
     import { renderNav } from './js/nav.js';
 
     initFirebase();
-    await renderNav('queue.html');
-    const profile = await requireAuth();
-
+    // Run nav + auth in parallel for faster load
+    const [, user] = await Promise.all([renderNav('queue.html'), requireAuth()]);
+    const profile = await getCurrentUserProfile();
     const isViewer = profile?.role === 'viewer';
     let allOrders = [];
     let currentFilter = 'all';

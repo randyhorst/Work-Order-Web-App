@@ -9,6 +9,9 @@
     <meta name="theme-color" content="#111827">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon.svg">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
@@ -262,8 +265,9 @@
     import { uploadFileToDrive, deleteFileFromDrive, isDriveConfigured } from './js/drive-storage.js';
 
     initFirebase();
-    await renderNav('new-work-order.html');
-    const profile = await requireAuth();
+    // Run nav + auth in parallel for faster load
+    await Promise.all([renderNav('new-work-order.html'), requireAuth()]);
+    const profile = await getCurrentUserProfile();
 
     const isViewer = profile?.role === 'viewer';
 
@@ -389,26 +393,21 @@
             const unit = document.getElementById('unit-number').value.trim();
             if (!unit) return; // need at least a unit before saving
 
+            // NEVER auto-create a brand-new WO — require explicit Save click.
+            // This prevents ghost WOs when user types a unit then navigates away.
+            if (!currentWOId) {
+                setStatus('Not yet saved — click 💾 Save to create', 'text-gray-400');
+                return;
+            }
+
             // Auto-advance status new → in_progress on first real edit
             const statusEl = document.getElementById('status');
-            if (statusEl.value === 'new' && currentWOId) {
+            if (statusEl.value === 'new') {
                 statusEl.value = 'in_progress';
             }
 
             const data = collectFormData();
-
-            if (currentWOId) {
-                await updateWorkOrder(currentWOId, data);
-            } else {
-                // First save — create the WO so future edits just update it
-                const wo = await createWorkOrder(data, profile.uid);
-                currentWOId = wo.id;
-                document.getElementById('wo-number-display').textContent = wo.displayWorkOrderNumber;
-                document.getElementById('wo-number-display').classList.remove('hidden');
-                history.replaceState({}, '', `?id=${wo.id}`);
-                // Now that we have an ID, hook checklist auto-save
-                scheduleChecklistAutoSave();
-            }
+            await updateWorkOrder(currentWOId, data);
             setStatus('✓ Auto-saved', 'text-green-400');
         } catch(e) {
             setStatus('Auto-save error: ' + e.message, 'text-red-400');
