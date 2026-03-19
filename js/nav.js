@@ -7,6 +7,7 @@
 
 import { getCurrentUserProfile, logoutUser, onAuthChange } from './auth.js';
 import { initTheme, toggleTheme } from './theme.js';
+import { getItem } from './storage.js';
 
 const PROFILE_CACHE_KEY = 'shopNavProfile';
 
@@ -60,7 +61,7 @@ export async function renderNav(activePage = '') {
     const nav = document.getElementById('main-nav');
     if (!nav) return;
 
-    const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+    const settings = JSON.parse(getItem('shopAppSettings') || '{}');
     const companyName = settings.companyName || 'Shop Work Orders';
 
     // Use cached profile for instant render; fall back to non-admin

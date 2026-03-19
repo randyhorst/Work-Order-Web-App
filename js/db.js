@@ -4,6 +4,7 @@
  */
 
 import { getDbInstance } from './firebase-init.js';
+import { getItem } from './storage.js';
 import {
     collection, doc, addDoc, setDoc, getDoc, getDocs,
     updateDoc, deleteDoc, query, where, orderBy, limit,
@@ -11,7 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 function getCompanyId() {
-    const s = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+    const s = JSON.parse(getItem('shopAppSettings') || '{}');
     return s.companyId || null;
 }
 

@@ -21,13 +21,14 @@
     <a href="login.html" class="text-indigo-400 underline text-sm">Click here if not redirected</a>
 </div>
 <script type="module">
-    import { initFirebase } from './js/firebase-init.js';
+    import { initFirebaseAsync } from './js/firebase-init.js';
     import { onAuthChange } from './js/auth.js';
+    import { getItem } from './js/storage.js';
 
-    const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+    const settings = JSON.parse(getItem('shopAppSettings') || '{}');
     if (settings.companyName) document.getElementById('company-title').textContent = settings.companyName;
 
-    const ok = initFirebase();
+    const ok = await initFirebaseAsync();
     if (!ok) { window.location.href = 'settings.html'; }
     else {
         onAuthChange(user => {

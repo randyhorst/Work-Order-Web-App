@@ -165,11 +165,12 @@ window.runImport = async function() {
     document.getElementById('progress-label').classList.remove('hidden');
 
     try {
-        log('Reading Firebase config from localStorage...');
-        const cfg = JSON.parse(localStorage.getItem('shopAppFirebaseConfig') || '{}');
+        log('Reading Firebase config...');
+        const { getItem: _getItem } = await import('./js/storage.js');
+        const cfg = JSON.parse(_getItem('shopAppFirebaseConfig') || '{}');
         if (!cfg.apiKey) throw new Error('No Firebase config found. Go to Settings and save your Firebase config first, then come back here.');
 
-        const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+        const settings = JSON.parse(_getItem('shopAppSettings') || '{}');
         const companyId = settings.companyId;
         if (!companyId) throw new Error('No Company ID found. Go to Settings and save your Company ID first.');
 

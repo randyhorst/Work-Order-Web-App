@@ -83,6 +83,13 @@ textarea { resize: none; }
 input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
 input[type="date"] { -webkit-appearance: none; appearance: none; min-height: 48px; max-height: 48px; box-sizing: border-box; }
 
+/* Smooth fade-in for loaded content */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.2s ease-out; }
+
 /* Priority badges */
 .badge-p1 { background: #dc2626; color: white; }
 .badge-p2 { background: #d97706; color: white; }

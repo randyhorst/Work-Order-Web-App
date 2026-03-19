@@ -174,13 +174,14 @@
     import { initFirebase, getAuthInstance, getDbInstance } from './js/firebase-init.js';
     import { registerUser, getCurrentUserProfile, onAuthChange } from './js/auth.js';
     import { getUsers, updateUser } from './js/db.js';
+    import { getItem, setItem } from './js/storage.js';
 
     const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
     const APP_SETTINGS_KEY = 'shopAppSettings';
 
     // Load saved values on page load
-    const savedCfg = JSON.parse(localStorage.getItem(APP_CONFIG_KEY) || '{}');
-    const savedSettings = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+    const savedCfg = JSON.parse(getItem(APP_CONFIG_KEY) || '{}');
+    const savedSettings = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
 
     if (savedCfg.apiKey) {
         document.getElementById('cfg-apiKey').value = savedCfg.apiKey || '';
@@ -227,7 +228,7 @@
         if (!config.apiKey || !config.projectId) {
             showStatus('firebase-save-status', 'API Key and Project ID are required.', 'text-red-400'); return;
         }
-        localStorage.setItem(APP_CONFIG_KEY, JSON.stringify(config));
+        setItem(APP_CONFIG_KEY, JSON.stringify(config));
         document.getElementById('firebase-status').textContent = '✓ Configured';
         document.getElementById('firebase-status').className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
         showStatus('firebase-save-status', '✓ Firebase config saved. Reload the page to activate.', 'text-green-400');
@@ -240,7 +241,7 @@
                 const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const db = getDbInstance();
                 if (!db) return;
-                const s = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+                const s = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
                 await setDoc(doc(db, 'public', 'appConfig'), {
                     ...config,
                     companyId: s.companyId || '',
@@ -251,19 +252,19 @@
     };
 
     window.saveCompanySettings = function() {
-        const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const existing = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
         const updated = {
             ...existing,
             companyName: document.getElementById('cfg-companyName').value.trim(),
             companyId: document.getElementById('cfg-companyId').value.trim().toLowerCase().replace(/\s+/g, '-'),
             logoUrl: document.getElementById('cfg-logoUrl').value.trim()
         };
-        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
+        setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
         showStatus('company-save-status', '✓ Company settings saved.', 'text-green-400');
     };
 
     window.saveDriveSettings = function() {
-        const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const existing = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
         const clientId = document.getElementById('cfg-googleClientId').value.trim();
         const folderId = document.getElementById('cfg-driveFolderId').value.trim();
         const updated = {
@@ -272,7 +273,7 @@
             googleApiKey: document.getElementById('cfg-googleApiKey').value.trim(),
             googleClientId: clientId
         };
-        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
+        setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
         const badge = document.getElementById('drive-status');
         if (clientId && folderId) {
             badge.textContent = '✓ Configured';
@@ -285,7 +286,7 @@
         const name = document.getElementById('setup-name').value.trim();
         const email = document.getElementById('setup-email').value.trim();
         const password = document.getElementById('setup-password').value;
-        const settings = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const settings = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
         const companyId = settings.companyId;
         const errEl = document.getElementById('setup-error');
         const succEl = document.getElementById('setup-success');

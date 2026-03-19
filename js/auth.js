@@ -4,6 +4,7 @@
  */
 
 import { getAuthInstance, getDbInstance } from './firebase-init.js';
+import { getItem } from './storage.js';
 import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
@@ -48,7 +49,7 @@ export async function getCurrentUserProfile() {
     const db = getDbInstance();
     const user = auth.currentUser;
     if (!user) return null;
-    const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+    const settings = JSON.parse(getItem('shopAppSettings') || '{}');
     const companyId = settings.companyId;
     if (!companyId) return null;
     const snap = await getDoc(doc(db, 'companies', companyId, 'users', user.uid));

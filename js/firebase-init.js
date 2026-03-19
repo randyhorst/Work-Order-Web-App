@@ -1,6 +1,7 @@
 /**
  * firebase-init.js
  * Initializes Firebase using config stored in localStorage by admin.
+ * Uses storage.js for cross-context support (iOS PWA standalone mode).
  * Exports db, auth, storage references for use across the app.
  */
 
@@ -8,11 +9,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+import { getItem } from './storage.js';
 
 const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
 
 function getStoredConfig() {
-    const raw = localStorage.getItem(APP_CONFIG_KEY);
+    const raw = getItem(APP_CONFIG_KEY);
     if (!raw) return null;
     try { return JSON.parse(raw); } catch { return null; }
 }
@@ -30,6 +32,24 @@ export function initFirebase() {
     _db = getFirestore(_app);
     _storage = getStorage(_app);
     return true;
+}
+
+/**
+ * Async version — tries SW cache + Firestore REST as fallbacks.
+ * Use this on entry pages (index.html, login.html, queue.html) for PWA resilience.
+ */
+export async function initFirebaseAsync() {
+    // Fast path: sync init works
+    if (initFirebase()) return true;
+    // Fallback 1: try SW cache (shared between Safari and standalone PWA on iOS)
+    const { getItemFromSWCache } = await import('./storage.js');
+    const raw = await getItemFromSWCache(APP_CONFIG_KEY);
+    if (raw) {
+        // Also restore settings
+        await getItemFromSWCache('shopAppSettings');
+        return initFirebase(); // retry with restored config
+    }
+    return false;
 }
 
 export function getApp() { return _app; }

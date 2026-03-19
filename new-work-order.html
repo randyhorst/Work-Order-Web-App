@@ -257,14 +257,15 @@
 </div>
 
 <script type="module">
-    import { initFirebase } from './js/firebase-init.js';
+    import { initFirebaseAsync } from './js/firebase-init.js';
     import { requireAuth, getCurrentUserProfile } from './js/auth.js';
     import { createWorkOrder, updateWorkOrder, deleteWorkOrder, getWorkOrder, matchEquipment, getCustomChecklists, getOpenWorkOrdersForUnit } from './js/db.js';
     import { checklists as defaultChecklists, renderChecklist, extractChecklistData, buildChecklistTableHTML } from './js/checklists.js';
     import { renderNav } from './js/nav.js';
     import { uploadFileToDrive, deleteFileFromDrive, isDriveConfigured } from './js/drive-storage.js';
+    import { getItem } from './js/storage.js';
 
-    initFirebase();
+    await initFirebaseAsync();
     // Run nav + auth in parallel for faster load
     await Promise.all([renderNav('new-work-order.html'), requireAuth()]);
     const profile = await getCurrentUserProfile();
@@ -702,7 +703,7 @@
         const getVal = id => document.getElementById(id)?.value?.trim() || '';
         const unit = getVal('unit-number');
         if (!unit) { alert('Please enter a Unit # or description.'); return; }
-        const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+        const settings = JSON.parse(getItem('shopAppSettings') || '{}');
         const priorityLabels = { priority_1: 'Priority 1 — Urgent', priority_2: 'Priority 2 — Important', priority_3: 'Priority 3 — Normal', low: 'Low' };
 
         document.getElementById('report-wo-number').textContent = document.getElementById('wo-number-display').textContent || 'Draft';
@@ -812,7 +813,7 @@
         const priority = document.getElementById('report-priority')?.textContent || '';
         const cameIn = document.getElementById('report-came-in-for')?.textContent || '';
         const gotDone = document.getElementById('report-got-done')?.textContent || '';
-        const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+        const settings = JSON.parse(getItem('shopAppSettings') || '{}');
         const logoUrl = settings.logoUrl || '';
 
         let inspHTML = '';

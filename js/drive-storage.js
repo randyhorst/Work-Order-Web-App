@@ -14,6 +14,8 @@
  * No Firebase Storage required.
  */
 
+import { getItem } from './storage.js';
+
 const SETTINGS_KEY = 'shopAppSettings';
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
@@ -22,7 +24,7 @@ let _tokenClient = null;
 let _gsiLoaded = false;
 
 function getSettings() {
-    try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; }
+    try { return JSON.parse(getItem(SETTINGS_KEY) || '{}'); } catch { return {}; }
 }
 
 /** Load the Google Identity Services script dynamically (only once). */

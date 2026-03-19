@@ -50,15 +50,15 @@
 </div>
 
 <script type="module">
-    import { initFirebase } from './js/firebase-init.js';
+    import { initFirebaseAsync, getAuthInstance } from './js/firebase-init.js';
     import { loginUser, onAuthChange } from './js/auth.js';
-    import { getAuthInstance } from './js/firebase-init.js';
     import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getItem } from './js/storage.js';
 
-    const settings = JSON.parse(localStorage.getItem('shopAppSettings') || '{}');
+    const settings = JSON.parse(getItem('shopAppSettings') || '{}');
     document.getElementById('company-name-display').textContent = settings.companyName || 'Shop Work Orders';
 
-    const ok = initFirebase();
+    const ok = await initFirebaseAsync();
     if (!ok) document.getElementById('setup-warning').classList.remove('hidden');
 
     onAuthChange(user => { if (user) window.location.href = 'queue.html'; });

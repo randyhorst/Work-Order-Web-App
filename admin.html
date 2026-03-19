@@ -337,15 +337,16 @@
 </div>
 
 <script type="module">
-    import { initFirebase } from './js/firebase-init.js';
+    import { initFirebaseAsync } from './js/firebase-init.js';
     import { requireAuth } from './js/auth.js';
     import { getUsers, updateUser, addEquipment, getEquipmentList, updateEquipment, deleteEquipment,
              createInviteCode, getCustomChecklists, saveChecklist, deleteChecklist,
              searchWorkOrders } from './js/db.js';
+    import { getItem, setItem } from './js/storage.js';
     import { checklists as defaultChecklists } from './js/checklists.js';
     import { renderNav } from './js/nav.js';
 
-    initFirebase();
+    await initFirebaseAsync();
     await renderNav('admin.html');
     const profile = await requireAuth(['admin']);
 
@@ -400,7 +401,7 @@
             const code = await createInviteCode(role, profile.uid);
             const baseUrl = window.location.href.replace('admin.html', '');
             // Only embed project ID — register page fetches full config via Firestore REST
-            const fbCfg = JSON.parse(localStorage.getItem('shopAppFirebaseConfig') || '{}');
+            const fbCfg = JSON.parse(getItem('shopAppFirebaseConfig') || '{}');
             const projectId = fbCfg.projectId || '';
             const link = `${baseUrl}register.html?invite=${code}${projectId ? '&p=' + projectId : ''}`;
             document.getElementById('invite-code-display').textContent = code;
@@ -822,8 +823,8 @@
     const APP_SETTINGS_KEY = 'shopAppSettings';
 
     function loadSettingsTab() {
-        const savedCfg = JSON.parse(localStorage.getItem(APP_CONFIG_KEY) || '{}');
-        const savedSettings = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const savedCfg = JSON.parse(getItem(APP_CONFIG_KEY) || '{}');
+        const savedSettings = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
 
         if (savedCfg.apiKey) {
             document.getElementById('cfg-apiKey').value = savedCfg.apiKey || '';
@@ -863,9 +864,9 @@
         reader.onload = function(ev) {
             const base64 = ev.target.result;
             // Save immediately to settings
-            const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+            const existing = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
             existing.logoUrl = base64;
-            localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(existing));
+            setItem(APP_SETTINGS_KEY, JSON.stringify(existing));
             // Update preview
             document.getElementById('logo-preview-img').src = base64;
             document.getElementById('logo-preview').classList.remove('hidden');
@@ -875,9 +876,9 @@
     });
 
     window.removeLogo = function() {
-        const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const existing = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
         delete existing.logoUrl;
-        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(existing));
+        setItem(APP_SETTINGS_KEY, JSON.stringify(existing));
         document.getElementById('logo-preview').classList.add('hidden');
         document.getElementById('logo-preview-img').src = '';
         document.getElementById('logo-file-name').textContent = 'No file chosen';
@@ -901,7 +902,7 @@
         if (!config.apiKey || !config.projectId) {
             showSettingsStatus('firebase-save-status', 'API Key and Project ID are required.', 'text-red-400'); return;
         }
-        localStorage.setItem(APP_CONFIG_KEY, JSON.stringify(config));
+        setItem(APP_CONFIG_KEY, JSON.stringify(config));
         document.getElementById('firebase-status').textContent = '✓ Configured';
         document.getElementById('firebase-status').className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
         showSettingsStatus('firebase-save-status', '✓ Firebase config saved. Reload the page to activate.', 'text-green-400');
@@ -911,7 +912,7 @@
                 const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
                 const db = (await import('./js/firebase-init.js')).getDbInstance();
                 if (!db) return;
-                const s = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+                const s = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
                 await setDoc(doc(db, 'public', 'appConfig'), {
                     ...config, companyId: s.companyId || '', companyName: s.companyName || ''
                 }, { merge: true });
@@ -920,18 +921,18 @@
     };
 
     window.saveCompanySettings = function() {
-        const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const existing = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
         const updated = {
             ...existing,
             companyName: document.getElementById('cfg-companyName').value.trim(),
             companyId: document.getElementById('cfg-companyId').value.trim().toLowerCase().replace(/\s+/g, '-')
         };
-        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
+        setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
         showSettingsStatus('company-save-status', '✓ Company settings saved.', 'text-green-400');
     };
 
     window.saveDriveSettings = function() {
-        const existing = JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}');
+        const existing = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
         const clientId = document.getElementById('cfg-googleClientId').value.trim();
         const folderId = document.getElementById('cfg-driveFolderId').value.trim();
         const updated = {
@@ -940,7 +941,7 @@
             googleApiKey: document.getElementById('cfg-googleApiKey').value.trim(),
             googleClientId: clientId
         };
-        localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
+        setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
         if (clientId && folderId) {
             document.getElementById('drive-status').textContent = '✓ Configured';
             document.getElementById('drive-status').className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';

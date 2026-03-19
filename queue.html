@@ -52,17 +52,35 @@
 
     <!-- Work Order Cards -->
     <div id="queue-list" class="space-y-3">
-        <div class="text-center text-gray-500 py-12">Loading queue...</div>
+        <!-- Skeleton cards shown while data loads -->
+        <div class="skeleton-card bg-gray-800 rounded-xl p-4 border border-gray-700 animate-pulse">
+            <div class="flex items-center gap-2 mb-2"><div class="h-4 w-20 bg-gray-700 rounded"></div><div class="h-5 w-16 bg-gray-700 rounded-full"></div><div class="h-5 w-20 bg-gray-700 rounded-full"></div></div>
+            <div class="h-5 w-48 bg-gray-700 rounded mb-2"></div>
+            <div class="h-4 w-72 bg-gray-700 rounded mb-2"></div>
+            <div class="flex gap-3 mt-2"><div class="h-3 w-20 bg-gray-700 rounded"></div><div class="h-3 w-16 bg-gray-700 rounded"></div></div>
+        </div>
+        <div class="skeleton-card bg-gray-800 rounded-xl p-4 border border-gray-700 animate-pulse">
+            <div class="flex items-center gap-2 mb-2"><div class="h-4 w-20 bg-gray-700 rounded"></div><div class="h-5 w-16 bg-gray-700 rounded-full"></div><div class="h-5 w-20 bg-gray-700 rounded-full"></div></div>
+            <div class="h-5 w-40 bg-gray-700 rounded mb-2"></div>
+            <div class="h-4 w-64 bg-gray-700 rounded mb-2"></div>
+            <div class="flex gap-3 mt-2"><div class="h-3 w-20 bg-gray-700 rounded"></div><div class="h-3 w-16 bg-gray-700 rounded"></div></div>
+        </div>
+        <div class="skeleton-card bg-gray-800 rounded-xl p-4 border border-gray-700 animate-pulse">
+            <div class="flex items-center gap-2 mb-2"><div class="h-4 w-20 bg-gray-700 rounded"></div><div class="h-5 w-16 bg-gray-700 rounded-full"></div><div class="h-5 w-20 bg-gray-700 rounded-full"></div></div>
+            <div class="h-5 w-56 bg-gray-700 rounded mb-2"></div>
+            <div class="h-4 w-60 bg-gray-700 rounded mb-2"></div>
+            <div class="flex gap-3 mt-2"><div class="h-3 w-20 bg-gray-700 rounded"></div><div class="h-3 w-16 bg-gray-700 rounded"></div></div>
+        </div>
     </div>
 </div>
 
 <script type="module">
-    import { initFirebase } from './js/firebase-init.js';
+    import { initFirebaseAsync } from './js/firebase-init.js';
     import { requireAuth, getCurrentUserProfile } from './js/auth.js';
     import { subscribeToActiveQueue, updateWorkOrder } from './js/db.js';
     import { renderNav } from './js/nav.js';
 
-    initFirebase();
+    await initFirebaseAsync();
     // Run nav + auth in parallel for faster load
     const [, user] = await Promise.all([renderNav('queue.html'), requireAuth()]);
     const profile = await getCurrentUserProfile();
@@ -122,7 +140,7 @@
             const sta = statusConfig[wo.status] || statusConfig.new;
             const created = wo.createdAt?.toDate ? wo.createdAt.toDate().toLocaleDateString() : (wo.date || '');
             return `
-            <div class="bg-gray-800 rounded-xl p-4 hover:bg-gray-750 transition cursor-pointer border border-gray-700 hover:border-indigo-500"
+            <div class="bg-gray-800 rounded-xl p-4 hover:bg-gray-750 transition cursor-pointer border border-gray-700 hover:border-indigo-500 fade-in"
                  onclick="window.location.href='new-work-order.html?id=${wo.id}'">
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex-1 min-w-0">

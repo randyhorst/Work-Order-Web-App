@@ -1,5 +1,5 @@
 // Service Worker v2 — caches CDN resources for fast repeat loads
-const CACHE_APP = 'shop-wo-app-v2';
+const CACHE_APP = 'shop-wo-app-v3';
 const CACHE_CDN = 'shop-wo-cdn-v1';
 
 const SHELL_URLS = [
@@ -22,6 +22,7 @@ const SHELL_URLS = [
     './js/checklists.js',
     './js/firebase-init.js',
     './js/drive-storage.js',
+    './js/storage.js',
     './manifest.json'
 ];
 
@@ -47,6 +48,25 @@ self.addEventListener('activate', e => {
             keys.filter(k => k !== CACHE_APP && k !== CACHE_CDN).map(k => caches.delete(k))
         )).then(() => self.clients.claim())
     );
+});
+
+// Config cache — stores app config in SW cache for cross-context PWA bootstrap
+const CONFIG_URL = '/app-config-store';
+self.addEventListener('message', async e => {
+    if (e.data?.type === 'STORE_CONFIG') {
+        const { key, value } = e.data.payload;
+        const cache = await caches.open(CACHE_APP);
+        // Read existing config map, merge in the new key
+        let configMap = {};
+        try {
+            const existing = await cache.match(CONFIG_URL);
+            if (existing) configMap = await existing.json();
+        } catch {}
+        configMap[key] = value;
+        await cache.put(CONFIG_URL, new Response(JSON.stringify(configMap), {
+            headers: { 'Content-Type': 'application/json' }
+        }));
+    }
 });
 
 // Fetch handler

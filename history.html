@@ -54,12 +54,12 @@
 </div>
 
 <script type="module">
-    import { initFirebase } from './js/firebase-init.js';
+    import { initFirebaseAsync } from './js/firebase-init.js';
     import { requireAuth } from './js/auth.js';
     import { searchWorkOrders } from './js/db.js';
     import { renderNav } from './js/nav.js';
 
-    initFirebase();
+    await initFirebaseAsync();
     await Promise.all([renderNav('history.html'), requireAuth()]);
 
     const priorityConfig = {
