@@ -161,31 +161,17 @@ export async function ensureUnitFolder(unitNumber) {
     const { driveFolderId } = getSettings();
     if (!driveFolderId) throw new Error('Google Drive Folder ID is not configured. Go to Settings → Google Drive.');
 
-    // Verify the parent folder is accessible before trying to use it
-    const parentCheckRes = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${driveFolderId}?fields=id,name`,
-        { headers: { Authorization: `Bearer ${token}` } }
-    );
-    let effectiveParentId = driveFolderId;
-    if (!parentCheckRes.ok) {
-        const errBody = await parentCheckRes.json().catch(() => ({}));
-        console.warn('[Drive] Configured folder not accessible:', parentCheckRes.status, errBody?.error?.message);
-        if (parentCheckRes.status === 404 || parentCheckRes.status === 403) {
-            console.error('[Drive] Folder not found/accessible. Folder ID:', driveFolderId, 'Status:', parentCheckRes.status, errBody?.error?.message);
-            throw new Error(`Drive folder not found (${driveFolderId}). Check Settings → Google Drive Folder ID, or make sure you added this app's OAuth scope to 'drive' (not 'drive.file').`);
-        } else {
-            throw new Error(errBody?.error?.message || `Drive parent folder check failed (${parentCheckRes.status})`);
-        }
-    }
-
     const folderName = sanitizeFolderName(unitNumber);
     const q = encodeURIComponent(
-        `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${folderName.replace(/'/g, "\\'")}'  and '${effectiveParentId}' in parents`
+        `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${folderName.replace(/'/g, "\\'")}'  and '${driveFolderId}' in parents`
     );
     const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`, {
         headers: { Authorization: `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error(`Drive folder lookup failed (${res.status})`);
+    if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e?.error?.message || `Drive folder lookup failed (${res.status})`);
+    }
     const data = await res.json();
     if (data.files?.length) return data.files[0];
 
