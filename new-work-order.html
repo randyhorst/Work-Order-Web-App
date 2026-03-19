@@ -699,12 +699,18 @@
                 setStatus('✓ Completed — ' + wo.displayWorkOrderNumber, 'text-green-400');
             }
             document.getElementById('status').value = 'completed';
-            const driveReady = isDriveConfigured() || await isDriveConfiguredAsync();
+            const _syncReady = isDriveConfigured();
+            const _asyncReady = await isDriveConfiguredAsync();
+            const driveReady = _syncReady || _asyncReady;
+            console.log('[Drive] syncReady:', _syncReady, '| asyncReady:', _asyncReady, '| driveReady:', driveReady);
+            try { const _raw = localStorage.getItem('shopAppSettings'); console.log('[Drive] raw settings from localStorage:', _raw); } catch(e) { console.log('[Drive] localStorage error:', e.message); }
             if (driveReady) {
                 try {
                     setStatus('Completed — generating PDF...', 'text-gray-400');
                     const woNumber = completedWorkOrderNumber || document.getElementById('wo-number-display').textContent || 'Draft';
+                    console.log('[Drive] generating PDF for WO:', woNumber);
                     const pdfMeta = await generateAndUploadCompletionPdf(woNumber);
+                    console.log('[Drive] upload success:', JSON.stringify(pdfMeta));
                     await updateWorkOrder(currentWOId, {
                         pdfDriveLink: pdfMeta.webViewLink,
                         pdfDriveFileId: pdfMeta.id,
@@ -713,7 +719,7 @@
                     });
                     setStatus('✓ Completed and PDF uploaded', 'text-green-400');
                 } catch (pdfErr) {
-                    console.error('[PDF upload error]', pdfErr);
+                    console.error('[PDF upload error]', pdfErr.message, pdfErr.stack);
                     setStatus('Completed — PDF upload failed: ' + pdfErr.message, 'text-yellow-400');
                 }
             } else {
