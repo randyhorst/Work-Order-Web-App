@@ -159,40 +159,68 @@ async function uploadToDrive({ blob, name, mimeType, parentId }) {
 export async function ensureUnitFolder(unitNumber) {
     const token = await getAccessToken();
     const { driveFolderId: rawId } = getSettings();
-    if (!rawId) throw new Error('Google Drive Folder ID is not configured. Go to Settings → Google Drive.');
-    const driveFolderId = rawId.trim();
-
+    const configuredParent = (rawId || '').trim();
     const folderName = sanitizeFolderName(unitNumber);
-    const q = encodeURIComponent(
-        `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${folderName.replace(/'/g, "\\'")}'  and '${driveFolderId}' in parents`
-    );
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1&supportsAllDrives=true&includeItemsFromAllDrives=true`, {
-        headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        throw new Error(e?.error?.message || `Drive folder lookup failed (${res.status})`);
-    }
-    const data = await res.json();
-    if (data.files?.length) return data.files[0];
 
-    const createRes = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name', {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            name: folderName,
-            mimeType: 'application/vnd.google-apps.folder',
-            parents: [driveFolderId]
-        })
-    });
-    if (!createRes.ok) {
-        const err = await createRes.json().catch(() => ({}));
-        throw new Error(err?.error?.message || `Drive folder create failed (${createRes.status})`);
+    // Helper: search for a unit folder inside a given parent
+    async function findFolder(parentId) {
+        const q = encodeURIComponent(
+            `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${folderName.replace(/'/g, "\\'")}' and '${parentId}' in parents`
+        );
+        const r = await fetch(
+            `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!r.ok) return null;
+        const d = await r.json();
+        return d.files?.length ? d.files[0] : null;
     }
-    return await createRes.json();
+
+    // Helper: create a folder inside a given parent (or root if omitted)
+    async function createFolder(name, parentId) {
+        const body = { name, mimeType: 'application/vnd.google-apps.folder' };
+        if (parentId) body.parents = [parentId];
+        const r = await fetch(
+            'https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name',
+            { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+        );
+        if (!r.ok) return null;
+        return await r.json();
+    }
+
+    // 1. Try configured parent folder
+    if (configuredParent) {
+        const existing = await findFolder(configuredParent);
+        if (existing) return existing;
+        const created = await createFolder(folderName, configuredParent);
+        if (created) return created;
+        console.warn('[Drive] Configured folder failed, falling back to app-created folder');
+    }
+
+    // 2. Fallback: find or create a "Work Orders" folder at Drive root, then unit folder inside it
+    let woRoot = null;
+    const woRootQ = encodeURIComponent(
+        `mimeType='application/vnd.google-apps.folder' and trashed=false and name='Work Orders' and 'root' in parents`
+    );
+    const woRootRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${woRootQ}&fields=files(id,name)&pageSize=1`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (woRootRes.ok) {
+        const d = await woRootRes.json();
+        woRoot = d.files?.length ? d.files[0] : null;
+    }
+    if (!woRoot) {
+        woRoot = await createFolder('Work Orders');
+    }
+    if (!woRoot) throw new Error('Could not create Work Orders folder in Drive. Check your Google account permissions.');
+
+    const existing = await findFolder(woRoot.id);
+    if (existing) return existing;
+    const created = await createFolder(folderName, woRoot.id);
+    if (created) return created;
+
+    throw new Error('Could not create unit folder in Drive.');
 }
 
 export async function uploadPdfToUnitFolder(blob, fileName, unitNumber) {
@@ -211,12 +239,11 @@ export async function uploadPdfToUnitFolder(blob, fileName, unitNumber) {
  */
 export async function uploadFileToDrive(file) {
     const { driveFolderId } = getSettings();
-    if (!driveFolderId) throw new Error('Google Drive Folder ID is not configured. Go to Settings → Google Drive.');
     return uploadToDrive({
         blob: file,
         name: file.name,
         mimeType: file.type,
-        parentId: driveFolderId
+        parentId: (driveFolderId || '').trim() || 'root'
     });
 }
 
@@ -234,17 +261,17 @@ export async function deleteFileFromDrive(driveFileId) {
     } catch(e) { /* non-critical */ }
 }
 
-/** Check if Drive is configured (client ID + folder ID both present). */
+/** Check if Drive is configured (only client ID is required; folder is optional with fallback). */
 export function isDriveConfigured() {
-    const { googleClientId, driveFolderId } = getSettings();
-    return !!(googleClientId && driveFolderId);
+    const { googleClientId } = getSettings();
+    return !!googleClientId;
 }
 
 /** Async version — uses getItemAsync so it works even when localStorage is empty (iOS PWA). */
 export async function isDriveConfiguredAsync() {
     try {
         const raw = await getItemAsync('shopAppSettings');
-        const { googleClientId, driveFolderId } = JSON.parse(raw || '{}');
-        return !!(googleClientId && driveFolderId);
+        const { googleClientId } = JSON.parse(raw || '{}');
+        return !!googleClientId;
     } catch { return false; }
 }
