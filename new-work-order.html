@@ -273,6 +273,15 @@
     const profile = await getCurrentUserProfile();
 
     const isViewer = profile?.role === 'viewer';
+    const isAdmin = profile?.role === 'admin';
+
+    // Restrict Mark Completed to admin only
+    if (!isAdmin) {
+        const completeBtn = document.getElementById('btn-complete');
+        if (completeBtn) {
+            completeBtn.style.display = 'none';
+        }
+    }
 
     // Pre-fill employee name from profile
     if (profile?.name) document.getElementById('employee-name').value = profile.name;
@@ -720,7 +729,9 @@
                     setStatus('✓ Completed and PDF uploaded', 'text-green-400');
                 } catch (pdfErr) {
                     console.error('[PDF upload error]', pdfErr.message, pdfErr.stack);
-                    setStatus('Completed — PDF upload failed: ' + pdfErr.message, 'text-yellow-400');
+                    setStatus('PDF upload failed: ' + pdfErr.message + ' — redirecting in 10s...', 'text-yellow-400');
+                    setTimeout(() => window.location.href = 'queue.html', 10000);
+                    return;
                 }
             } else {
                 setStatus('✓ Completed (Drive not configured)', 'text-green-400');
