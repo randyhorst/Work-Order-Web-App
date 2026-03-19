@@ -18,8 +18,8 @@ import { getItem, getItemAsync } from './storage.js';
 
 const SETTINGS_KEY = 'shopAppSettings';
 const SCOPE = 'https://www.googleapis.com/auth/drive';
-const TOKEN_KEY = 'shopDriveAccessToken_v2';
-const TOKEN_EXPIRY_KEY = 'shopDriveAccessTokenExpiry_v2';
+const TOKEN_KEY = 'shopDriveAccessToken_v3';
+const TOKEN_EXPIRY_KEY = 'shopDriveAccessTokenExpiry_v3';
 
 let _accessToken = null;
 let _tokenClient = null;
@@ -84,25 +84,16 @@ export async function getAccessToken() {
     await loadGSI();
 
     return new Promise((resolve, reject) => {
-        let retriedWithConsent = false;
         _tokenClient = window.google.accounts.oauth2.initTokenClient({
             client_id: googleClientId,
             scope: SCOPE,
             callback: (resp) => {
-                if (resp.error) {
-                    if (!retriedWithConsent && (resp.error === 'interaction_required' || resp.error === 'login_required' || resp.error === 'consent_required')) {
-                        retriedWithConsent = true;
-                        _tokenClient.requestAccessToken({ prompt: 'consent' });
-                        return;
-                    }
-                    reject(new Error(resp.error));
-                    return;
-                }
+                if (resp.error) { reject(new Error(resp.error)); return; }
                 cacheToken(resp.access_token, resp.expires_in);
                 resolve(_accessToken);
             }
         });
-        _tokenClient.requestAccessToken({ prompt: 'select_account' });
+        _tokenClient.requestAccessToken({ prompt: 'consent' });
     });
 }
 
