@@ -64,25 +64,43 @@ export async function getAccessToken() {
     });
 }
 
-/**
- * Upload a single File object to Google Drive.
- * Returns metadata: { id, name, webViewLink, webContentLink, mimeType, size }
- */
-export async function uploadFileToDrive(file) {
-    const token = await getAccessToken();
-    const { driveFolderId } = getSettings();
-    if (!driveFolderId) throw new Error('Google Drive Folder ID is not configured. Go to Settings → Google Drive.');
+async function makePublic(fileId, token) {
+    await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ role: 'reader', type: 'anyone' })
+    });
+}
 
-    // Multipart upload: metadata + file content in one request
+function buildDriveMeta(fileMeta) {
+    return {
+        id: fileMeta.id,
+        name: fileMeta.name,
+        mimeType: fileMeta.mimeType,
+        size: parseInt(fileMeta.size || 0),
+        webViewLink: fileMeta.webViewLink,
+        webContentLink: `https://drive.google.com/uc?export=view&id=${fileMeta.id}`
+    };
+}
+
+function sanitizeFolderName(name) {
+    return (name || 'Unknown Unit').replace(/[\\/:*?"<>|]/g, '-').trim() || 'Unknown Unit';
+}
+
+async function uploadToDrive({ blob, name, mimeType, parentId }) {
+    const token = await getAccessToken();
     const metadata = {
-        name: file.name,
-        mimeType: file.type,
-        parents: [driveFolderId]
+        name,
+        mimeType,
+        parents: [parentId]
     };
 
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', file);
+    form.append('file', blob, name);
 
     const uploadRes = await fetch(
         'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,size,webViewLink,webContentLink',
@@ -99,26 +117,68 @@ export async function uploadFileToDrive(file) {
     }
 
     const fileMeta = await uploadRes.json();
+    await makePublic(fileMeta.id, token);
+    return buildDriveMeta(fileMeta);
+}
 
-    // Make the file viewable by anyone with the link
-    await fetch(`https://www.googleapis.com/drive/v3/files/${fileMeta.id}/permissions`, {
+export async function ensureUnitFolder(unitNumber) {
+    const token = await getAccessToken();
+    const { driveFolderId } = getSettings();
+    if (!driveFolderId) throw new Error('Google Drive Folder ID is not configured. Go to Settings → Google Drive.');
+
+    const folderName = sanitizeFolderName(unitNumber);
+    const q = encodeURIComponent(
+        `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${folderName.replace(/'/g, "\\'")}' and '${driveFolderId}' in parents`
+    );
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error(`Drive folder lookup failed (${res.status})`);
+    const data = await res.json();
+    if (data.files?.length) return data.files[0];
+
+    const createRes = await fetch('https://www.googleapis.com/drive/v3/files?fields=id,name', {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ role: 'reader', type: 'anyone' })
+        body: JSON.stringify({
+            name: folderName,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: [driveFolderId]
+        })
     });
+    if (!createRes.ok) {
+        const err = await createRes.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `Drive folder create failed (${createRes.status})`);
+    }
+    return await createRes.json();
+}
 
-    return {
-        id: fileMeta.id,
-        name: fileMeta.name,
-        mimeType: fileMeta.mimeType,
-        size: parseInt(fileMeta.size || 0),
-        webViewLink: fileMeta.webViewLink,
-        // Direct download/display link for images
-        webContentLink: `https://drive.google.com/uc?export=view&id=${fileMeta.id}`
-    };
+export async function uploadPdfToUnitFolder(blob, fileName, unitNumber) {
+    const folder = await ensureUnitFolder(unitNumber);
+    return uploadToDrive({
+        blob,
+        name: fileName,
+        mimeType: 'application/pdf',
+        parentId: folder.id
+    });
+}
+
+/**
+ * Upload a single File object to Google Drive.
+ * Returns metadata: { id, name, webViewLink, webContentLink, mimeType, size }
+ */
+export async function uploadFileToDrive(file) {
+    const { driveFolderId } = getSettings();
+    if (!driveFolderId) throw new Error('Google Drive Folder ID is not configured. Go to Settings → Google Drive.');
+    return uploadToDrive({
+        blob: file,
+        name: file.name,
+        mimeType: file.type,
+        parentId: driveFolderId
+    });
 }
 
 /**

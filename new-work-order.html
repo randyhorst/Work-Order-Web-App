@@ -12,7 +12,9 @@
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -262,7 +264,7 @@
     import { createWorkOrder, updateWorkOrder, deleteWorkOrder, getWorkOrder, matchEquipment, getCustomChecklists, getOpenWorkOrdersForUnit } from './js/db.js';
     import { checklists as defaultChecklists, renderChecklist, extractChecklistData, buildChecklistTableHTML } from './js/checklists.js';
     import { renderNav } from './js/nav.js';
-    import { uploadFileToDrive, deleteFileFromDrive, isDriveConfigured } from './js/drive-storage.js';
+    import { uploadFileToDrive, uploadPdfToUnitFolder, deleteFileFromDrive, isDriveConfigured } from './js/drive-storage.js';
     import { getItem } from './js/storage.js';
 
     await initFirebaseAsync();
@@ -683,6 +685,7 @@
         try {
             const data = collectFormData('completed');
             data.completedAt = new Date().toISOString();
+            let completedWorkOrderNumber = document.getElementById('wo-number-display').textContent || '';
             if (currentWOId) {
                 await updateWorkOrder(currentWOId, data);
                 setStatus('✓ Marked completed', 'text-green-400');
@@ -692,10 +695,26 @@
                 document.getElementById('wo-number-display').textContent = wo.displayWorkOrderNumber;
                 document.getElementById('wo-number-display').classList.remove('hidden');
                 history.replaceState({}, '', `?id=${wo.id}`);
+                completedWorkOrderNumber = wo.displayWorkOrderNumber;
                 setStatus('✓ Completed — ' + wo.displayWorkOrderNumber, 'text-green-400');
             }
             document.getElementById('status').value = 'completed';
-            setTimeout(() => window.location.href = 'queue.html', 1500);
+            if (isDriveConfigured()) {
+                try {
+                    setStatus('Completed — generating PDF...', 'text-gray-400');
+                    const pdfMeta = await generateAndUploadCompletionPdf(completedWorkOrderNumber || document.getElementById('wo-number-display').textContent || 'Draft');
+                    await updateWorkOrder(currentWOId, {
+                        pdfDriveLink: pdfMeta.webViewLink,
+                        pdfDriveFileId: pdfMeta.id,
+                        pdfDriveName: pdfMeta.name,
+                        pdfGeneratedAt: new Date().toISOString()
+                    });
+                    setStatus('✓ Completed and PDF uploaded', 'text-green-400');
+                } catch (pdfErr) {
+                    setStatus('Completed, but PDF upload failed: ' + pdfErr.message, 'text-yellow-400');
+                }
+            }
+            setTimeout(() => window.location.href = 'queue.html', 1800);
         } catch(e) { setStatus('Error: ' + e.message, 'text-red-400'); }
     }
 
@@ -873,6 +892,60 @@ td{border-bottom:1px solid #e5e7eb;padding:4px;vertical-align:top;}
 ${inspHTML}${photoHTML}
 <div style="margin-top:auto;padding-top:16px;border-top:1px solid #d1d5db;text-align:center;"><p style="font-size:10px;color:#9ca3af;">Generated via Shop Work Order System</p></div>
 </body></html>`;
+    }
+
+    function formatPdfDate(dateStr) {
+        const d = dateStr ? new Date(dateStr) : new Date();
+        if (Number.isNaN(d.getTime())) return new Date().toISOString().split('T')[0];
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function buildPdfFileName(workOrderNumber) {
+        const unit = (document.getElementById('unit-number').value || 'Unknown Unit').trim();
+        const dateStr = formatPdfDate(document.getElementById('date').value || new Date().toISOString());
+        const inspection = document.getElementById('toggle-inspection').checked;
+        const baseName = inspection ? `Inspection ${dateStr}` : `${dateStr}`;
+        const safeUnit = unit.replace(/[\\/:*?"<>|]/g, '-').trim() || 'Unknown Unit';
+        const safeWo = (workOrderNumber || '').replace(/[\\/:*?"<>|]/g, '-').trim();
+        return `${safeUnit} - ${baseName}${safeWo ? ' - ' + safeWo : ''}.pdf`;
+    }
+
+    async function generatePdfBlob() {
+        generatePrintView();
+        const source = document.getElementById('print-preview');
+        const temp = source.cloneNode(true);
+        temp.style.display = 'block';
+        temp.style.position = 'fixed';
+        temp.style.left = '-99999px';
+        temp.style.top = '0';
+        temp.style.width = '816px';
+        temp.style.background = '#ffffff';
+        temp.style.color = '#000000';
+        document.body.appendChild(temp);
+        try {
+            const worker = window.html2pdf().set({
+                margin: 0.5,
+                filename: 'worksheet.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            }).from(temp);
+            const blob = await worker.outputPdf('blob');
+            return blob;
+        } finally {
+            temp.remove();
+            showFormView();
+        }
+    }
+
+    async function generateAndUploadCompletionPdf(workOrderNumber) {
+        const unit = document.getElementById('unit-number').value.trim();
+        const fileName = buildPdfFileName(workOrderNumber);
+        const pdfBlob = await generatePdfBlob();
+        return await uploadPdfToUnitFolder(pdfBlob, fileName, unit);
     }
 
     document.getElementById('print-btn').addEventListener('click', function() {

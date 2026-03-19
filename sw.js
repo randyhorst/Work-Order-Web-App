@@ -29,6 +29,7 @@ const SHELL_URLS = [
 // CDN origins we want to cache (Tailwind, Firebase SDK, Google Fonts)
 const CACHEABLE_CDN = [
     'cdn.tailwindcss.com',
+    'cdnjs.cloudflare.com',
     'www.gstatic.com',
     'fonts.googleapis.com',
     'fonts.gstatic.com'
