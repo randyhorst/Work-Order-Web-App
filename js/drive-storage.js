@@ -155,7 +155,9 @@ async function uploadToDrive({ blob, name, mimeType, parentId }) {
 
     if (!uploadRes.ok) {
         const err = await uploadRes.json().catch(() => ({}));
-        throw new Error(err?.error?.message || `Drive upload failed (${uploadRes.status})`);
+        const msg = err?.error?.message || `Drive upload failed (${uploadRes.status})`;
+        console.error('[Drive upload error]', uploadRes.status, err);
+        throw new Error(msg);
     }
 
     const fileMeta = await uploadRes.json();
@@ -168,9 +170,27 @@ export async function ensureUnitFolder(unitNumber) {
     const { driveFolderId } = getSettings();
     if (!driveFolderId) throw new Error('Google Drive Folder ID is not configured. Go to Settings → Google Drive.');
 
+    // Verify the parent folder is accessible before trying to use it
+    const parentCheckRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${driveFolderId}?fields=id,name`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+    let effectiveParentId = driveFolderId;
+    if (!parentCheckRes.ok) {
+        const errBody = await parentCheckRes.json().catch(() => ({}));
+        console.warn('[Drive] Configured folder not accessible:', parentCheckRes.status, errBody?.error?.message);
+        if (parentCheckRes.status === 404 || parentCheckRes.status === 403) {
+            // Fall back to root — at least the upload succeeds
+            console.warn('[Drive] Falling back to root Drive folder for upload.');
+            effectiveParentId = 'root';
+        } else {
+            throw new Error(errBody?.error?.message || `Drive parent folder check failed (${parentCheckRes.status})`);
+        }
+    }
+
     const folderName = sanitizeFolderName(unitNumber);
     const q = encodeURIComponent(
-        `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${folderName.replace(/'/g, "\\'")}' and '${driveFolderId}' in parents`
+        `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${folderName.replace(/'/g, "\\'")}'  and '${effectiveParentId}' in parents`
     );
     const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -188,11 +208,12 @@ export async function ensureUnitFolder(unitNumber) {
         body: JSON.stringify({
             name: folderName,
             mimeType: 'application/vnd.google-apps.folder',
-            parents: [driveFolderId]
+            parents: [effectiveParentId]
         })
     });
     if (!createRes.ok) {
         const err = await createRes.json().catch(() => ({}));
+        console.error('[Drive] Folder create failed:', createRes.status, err);
         throw new Error(err?.error?.message || `Drive folder create failed (${createRes.status})`);
     }
     return await createRes.json();
