@@ -136,7 +136,7 @@ async function uploadToDrive({ blob, name, mimeType, parentId }) {
     form.append('file', blob, name);
 
     const uploadRes = await fetch(
-        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,size,webViewLink,webContentLink',
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,mimeType,size,webViewLink,webContentLink',
         {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
@@ -158,27 +158,25 @@ async function uploadToDrive({ blob, name, mimeType, parentId }) {
 
 export async function ensureUnitFolder(unitNumber) {
     const token = await getAccessToken();
-    const { driveFolderId } = getSettings();
-    if (!driveFolderId) throw new Error('Google Drive Folder ID is not configured. Go to Settings → Google Drive.');
+    const { driveFolderId: rawId } = getSettings();
+    if (!rawId) throw new Error('Google Drive Folder ID is not configured. Go to Settings → Google Drive.');
+    const driveFolderId = rawId.trim();
 
     const folderName = sanitizeFolderName(unitNumber);
     const q = encodeURIComponent(
         `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${folderName.replace(/'/g, "\\'")}'  and '${driveFolderId}' in parents`
     );
-    console.log('[Drive] ensureUnitFolder — folderId:', driveFolderId, '| unit:', folderName, '| token starts:', token?.slice(0,20));
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`, {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1&supportsAllDrives=true&includeItemsFromAllDrives=true`, {
         headers: { Authorization: `Bearer ${token}` }
     });
-    const resText = await res.text();
-    console.log('[Drive] folder list response', res.status, resText);
     if (!res.ok) {
-        let e = {}; try { e = JSON.parse(resText); } catch {}
+        const e = await res.json().catch(() => ({}));
         throw new Error(e?.error?.message || `Drive folder lookup failed (${res.status})`);
     }
-    const data = JSON.parse(resText);
+    const data = await res.json();
     if (data.files?.length) return data.files[0];
 
-    const createRes = await fetch('https://www.googleapis.com/drive/v3/files?fields=id,name', {
+    const createRes = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name', {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${token}`,
@@ -187,12 +185,11 @@ export async function ensureUnitFolder(unitNumber) {
         body: JSON.stringify({
             name: folderName,
             mimeType: 'application/vnd.google-apps.folder',
-            parents: [effectiveParentId]
+            parents: [driveFolderId]
         })
     });
     if (!createRes.ok) {
         const err = await createRes.json().catch(() => ({}));
-        console.error('[Drive] Folder create failed:', createRes.status, err);
         throw new Error(err?.error?.message || `Drive folder create failed (${createRes.status})`);
     }
     return await createRes.json();
