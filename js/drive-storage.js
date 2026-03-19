@@ -17,9 +17,10 @@
 import { getItem, getItemAsync } from './storage.js';
 
 const SETTINGS_KEY = 'shopAppSettings';
-const SCOPE = 'https://www.googleapis.com/auth/drive';
-const TOKEN_KEY = 'shopDriveAccessToken_v3';
-const TOKEN_EXPIRY_KEY = 'shopDriveAccessTokenExpiry_v3';
+const SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const TOKEN_KEY = 'shopDriveAccessToken_v4';
+const TOKEN_EXPIRY_KEY = 'shopDriveAccessTokenExpiry_v4';
+const FOLDER_CACHE_KEY = 'shopDriveFolderCache';
 
 let _accessToken = null;
 let _tokenClient = null;
@@ -158,74 +159,56 @@ async function uploadToDrive({ blob, name, mimeType, parentId }) {
     return buildDriveMeta(fileMeta);
 }
 
+function getFolderCache() {
+    try { return JSON.parse(localStorage.getItem(FOLDER_CACHE_KEY) || '{}'); } catch { return {}; }
+}
+function saveFolderCache(cache) {
+    try { localStorage.setItem(FOLDER_CACHE_KEY, JSON.stringify(cache)); } catch {}
+}
+
+async function createDriveFolder(token, name, parentId) {
+    const body = { name, mimeType: 'application/vnd.google-apps.folder' };
+    if (parentId) body.parents = [parentId];
+    const r = await fetch(
+        'https://www.googleapis.com/drive/v3/files?fields=id,name',
+        { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    );
+    if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error(e?.error?.message || `Failed to create folder "${name}" (${r.status})`);
+    }
+    return await r.json();
+}
+
 export async function ensureUnitFolder(unitNumber) {
     const token = await getAccessToken();
-    const { driveFolderId: rawId } = getSettings();
-    const configuredParent = (rawId || '').trim();
     const folderName = sanitizeFolderName(unitNumber);
+    const cache = getFolderCache();
 
-    // Helper: search for a unit folder inside a given parent
-    async function findFolder(parentId) {
-        const q = encodeURIComponent(
-            `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${folderName.replace(/'/g, "\\'")}' and '${parentId}' in parents`
-        );
-        const r = await fetch(
-            `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1&supportsAllDrives=true&includeItemsFromAllDrives=true`,
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (!r.ok) return null;
-        const d = await r.json();
-        return d.files?.length ? d.files[0] : null;
+    // Return cached unit folder ID if we have it
+    if (cache[folderName]) {
+        console.log('[Drive] using cached unit folder:', cache[folderName]);
+        return { id: cache[folderName], name: folderName };
     }
 
-    // Helper: create a folder inside a given parent (or root if omitted)
-    async function createFolder(name, parentId) {
-        const body = { name, mimeType: 'application/vnd.google-apps.folder' };
-        if (parentId) body.parents = [parentId];
-        const r = await fetch(
-            'https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name',
-            { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-        );
-        const rText = await r.text();
-        console.log('[Drive] createFolder', name, 'in', parentId || 'root', '->', r.status, rText);
-        if (!r.ok) return null;
-        return JSON.parse(rText);
+    // Ensure we have a root "Work Orders" folder (app-created, cached)
+    let woRootId = cache['__woRoot'];
+    if (!woRootId) {
+        console.log('[Drive] creating Work Orders root folder');
+        const woRoot = await createDriveFolder(token, 'Work Orders', null);
+        woRootId = woRoot.id;
+        cache['__woRoot'] = woRootId;
+        saveFolderCache(cache);
+        console.log('[Drive] Work Orders root created:', woRootId);
     }
 
-    // 1. Try configured parent folder
-    if (configuredParent) {
-        console.log('[Drive] trying configured parent:', configuredParent);
-        const existing = await findFolder(configuredParent);
-        if (existing) { console.log('[Drive] found existing unit folder:', existing.id); return existing; }
-        const created = await createFolder(folderName, configuredParent);
-        if (created) { console.log('[Drive] created unit folder in configured parent:', created.id); return created; }
-        console.warn('[Drive] Configured folder failed, falling back to app-created folder');
-    }
-
-    // 2. Fallback: find or create a "Work Orders" folder at Drive root, then unit folder inside it
-    let woRoot = null;
-    const woRootQ = encodeURIComponent(
-        `mimeType='application/vnd.google-apps.folder' and trashed=false and name='Work Orders' and 'root' in parents`
-    );
-    const woRootRes = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q=${woRootQ}&fields=files(id,name)&pageSize=1`,
-        { headers: { Authorization: `Bearer ${token}` } }
-    );
-    if (woRootRes.ok) {
-        const d = await woRootRes.json();
-        woRoot = d.files?.length ? d.files[0] : null;
-    }
-    if (!woRoot) {
-        woRoot = await createFolder('Work Orders');
-    }
-    if (!woRoot) throw new Error('Could not create Work Orders folder in Drive. Check your Google account permissions.');
-
-    const existing = await findFolder(woRoot.id);
-    if (existing) return existing;
-    const created = await createFolder(folderName, woRoot.id);
-    if (created) return created;
-
-    throw new Error('Could not create unit folder in Drive.');
+    // Create unit subfolder inside Work Orders
+    console.log('[Drive] creating unit folder:', folderName, 'in', woRootId);
+    const unitFolder = await createDriveFolder(token, folderName, woRootId);
+    cache[folderName] = unitFolder.id;
+    saveFolderCache(cache);
+    console.log('[Drive] unit folder created:', unitFolder.id);
+    return unitFolder;
 }
 
 export async function uploadPdfToUnitFolder(blob, fileName, unitNumber) {
