@@ -264,7 +264,7 @@
     import { createWorkOrder, updateWorkOrder, deleteWorkOrder, getWorkOrder, matchEquipment, getCustomChecklists, getOpenWorkOrdersForUnit } from './js/db.js';
     import { checklists as defaultChecklists, renderChecklist, extractChecklistData, buildChecklistTableHTML } from './js/checklists.js';
     import { renderNav } from './js/nav.js';
-    import { uploadFileToDrive, uploadPdfToUnitFolder, deleteFileFromDrive, isDriveConfigured } from './js/drive-storage.js';
+    import { uploadFileToDrive, uploadPdfToUnitFolder, deleteFileFromDrive, isDriveConfigured, isDriveConfiguredAsync } from './js/drive-storage.js';
     import { getItem } from './js/storage.js';
 
     await initFirebaseAsync();
@@ -699,10 +699,12 @@
                 setStatus('✓ Completed — ' + wo.displayWorkOrderNumber, 'text-green-400');
             }
             document.getElementById('status').value = 'completed';
-            if (isDriveConfigured()) {
+            const driveReady = isDriveConfigured() || await isDriveConfiguredAsync();
+            if (driveReady) {
                 try {
                     setStatus('Completed — generating PDF...', 'text-gray-400');
-                    const pdfMeta = await generateAndUploadCompletionPdf(completedWorkOrderNumber || document.getElementById('wo-number-display').textContent || 'Draft');
+                    const woNumber = completedWorkOrderNumber || document.getElementById('wo-number-display').textContent || 'Draft';
+                    const pdfMeta = await generateAndUploadCompletionPdf(woNumber);
                     await updateWorkOrder(currentWOId, {
                         pdfDriveLink: pdfMeta.webViewLink,
                         pdfDriveFileId: pdfMeta.id,
@@ -711,10 +713,13 @@
                     });
                     setStatus('✓ Completed and PDF uploaded', 'text-green-400');
                 } catch (pdfErr) {
-                    setStatus('Completed, but PDF upload failed: ' + pdfErr.message, 'text-yellow-400');
+                    console.error('[PDF upload error]', pdfErr);
+                    setStatus('Completed — PDF upload failed: ' + pdfErr.message, 'text-yellow-400');
                 }
+            } else {
+                setStatus('✓ Completed (Drive not configured)', 'text-green-400');
             }
-            setTimeout(() => window.location.href = 'queue.html', 1800);
+            setTimeout(() => window.location.href = 'queue.html', driveReady ? 3000 : 1800);
         } catch(e) { setStatus('Error: ' + e.message, 'text-red-400'); }
     }
 
@@ -914,18 +919,25 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
+        const wasPreviewHidden = document.getElementById('print-preview').classList.contains('hidden');
         generatePrintView();
-        const source = document.getElementById('print-preview');
-        const temp = source.cloneNode(true);
-        temp.style.display = 'block';
+        const html = buildPrintHTML();
+        const parsed = new DOMParser().parseFromString(html, 'text/html');
+        const temp = document.createElement('div');
         temp.style.position = 'fixed';
         temp.style.left = '-99999px';
         temp.style.top = '0';
         temp.style.width = '816px';
         temp.style.background = '#ffffff';
         temp.style.color = '#000000';
+        const styleEl = parsed.querySelector('style');
+        if (styleEl) temp.appendChild(styleEl.cloneNode(true));
+        const bodyWrapper = document.createElement('div');
+        bodyWrapper.innerHTML = parsed.body.innerHTML;
+        temp.appendChild(bodyWrapper);
         document.body.appendChild(temp);
         try {
+            await new Promise(resolve => setTimeout(resolve, 250));
             const worker = window.html2pdf().set({
                 margin: 0.5,
                 filename: 'worksheet.pdf',
@@ -933,11 +945,11 @@ ${inspHTML}${photoHTML}
                 html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
                 jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
             }).from(temp);
-            const blob = await worker.outputPdf('blob');
+            const blob = await worker.output('blob');
             return blob;
         } finally {
             temp.remove();
-            showFormView();
+            if (wasPreviewHidden) showFormView();
         }
     }
 

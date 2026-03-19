@@ -14,17 +14,51 @@
  * No Firebase Storage required.
  */
 
-import { getItem } from './storage.js';
+import { getItem, getItemAsync } from './storage.js';
 
 const SETTINGS_KEY = 'shopAppSettings';
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const TOKEN_KEY = 'shopDriveAccessToken';
+const TOKEN_EXPIRY_KEY = 'shopDriveAccessTokenExpiry';
 
 let _accessToken = null;
 let _tokenClient = null;
 let _gsiLoaded = false;
+let _tokenExpiresAt = 0;
 
 function getSettings() {
     try { return JSON.parse(getItem(SETTINGS_KEY) || '{}'); } catch { return {}; }
+}
+
+function getCachedToken() {
+    if (_accessToken && _tokenExpiresAt > Date.now() + 60_000) return _accessToken;
+    try {
+        const token = sessionStorage.getItem(TOKEN_KEY);
+        const expiry = parseInt(sessionStorage.getItem(TOKEN_EXPIRY_KEY) || '0', 10);
+        if (token && expiry > Date.now() + 60_000) {
+            _accessToken = token;
+            _tokenExpiresAt = expiry;
+            return token;
+        }
+    } catch {}
+    return null;
+}
+
+function cacheToken(token, expiresInSeconds) {
+    _accessToken = token;
+    _tokenExpiresAt = Date.now() + (Math.max(60, expiresInSeconds || 3600) * 1000);
+    try {
+        sessionStorage.setItem(TOKEN_KEY, token);
+        sessionStorage.setItem(TOKEN_EXPIRY_KEY, String(_tokenExpiresAt));
+    } catch {}
+    setTimeout(() => {
+        _accessToken = null;
+        _tokenExpiresAt = 0;
+        try {
+            sessionStorage.removeItem(TOKEN_KEY);
+            sessionStorage.removeItem(TOKEN_EXPIRY_KEY);
+        } catch {}
+    }, Math.max(1, _tokenExpiresAt - Date.now() - 60_000));
 }
 
 /** Load the Google Identity Services script dynamically (only once). */
@@ -41,7 +75,8 @@ function loadGSI() {
 
 /** Get a valid OAuth access token, prompting the user if needed. */
 export async function getAccessToken() {
-    if (_accessToken) return _accessToken;
+    const cached = getCachedToken();
+    if (cached) return cached;
 
     const { googleClientId } = getSettings();
     if (!googleClientId) throw new Error('Google OAuth Client ID is not configured. Go to Settings → Google Drive.');
@@ -49,18 +84,25 @@ export async function getAccessToken() {
     await loadGSI();
 
     return new Promise((resolve, reject) => {
+        let retriedWithConsent = false;
         _tokenClient = window.google.accounts.oauth2.initTokenClient({
             client_id: googleClientId,
             scope: SCOPE,
             callback: (resp) => {
-                if (resp.error) { reject(new Error(resp.error)); return; }
-                _accessToken = resp.access_token;
-                // Tokens expire in ~1 hour — clear cached token after 55 min
-                setTimeout(() => { _accessToken = null; }, 55 * 60 * 1000);
+                if (resp.error) {
+                    if (!retriedWithConsent && (resp.error === 'interaction_required' || resp.error === 'login_required' || resp.error === 'consent_required')) {
+                        retriedWithConsent = true;
+                        _tokenClient.requestAccessToken({ prompt: 'consent' });
+                        return;
+                    }
+                    reject(new Error(resp.error));
+                    return;
+                }
+                cacheToken(resp.access_token, resp.expires_in);
                 resolve(_accessToken);
             }
         });
-        _tokenClient.requestAccessToken({ prompt: 'consent' });
+        _tokenClient.requestAccessToken({ prompt: 'select_account' });
     });
 }
 
@@ -199,4 +241,13 @@ export async function deleteFileFromDrive(driveFileId) {
 export function isDriveConfigured() {
     const { googleClientId, driveFolderId } = getSettings();
     return !!(googleClientId && driveFolderId);
+}
+
+/** Async version — uses getItemAsync so it works even when localStorage is empty (iOS PWA). */
+export async function isDriveConfiguredAsync() {
+    try {
+        const raw = await getItemAsync('shopAppSettings');
+        const { googleClientId, driveFolderId } = JSON.parse(raw || '{}');
+        return !!(googleClientId && driveFolderId);
+    } catch { return false; }
 }

@@ -110,6 +110,15 @@ export async function getItemFromSWCache(key) {
     return null;
 }
 
+/**
+ * Async version of getItem. Tries sync methods first, then SW cache as last resort.
+ */
+export async function getItemAsync(key) {
+    const sync = getItem(key);
+    if (sync) return sync;
+    return await getItemFromSWCache(key);
+}
+
 function escapeRegex(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
