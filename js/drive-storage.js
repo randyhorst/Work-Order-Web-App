@@ -165,14 +165,17 @@ export async function ensureUnitFolder(unitNumber) {
     const q = encodeURIComponent(
         `mimeType='application/vnd.google-apps.folder' and trashed=false and name='${folderName.replace(/'/g, "\\'")}'  and '${driveFolderId}' in parents`
     );
+    console.log('[Drive] ensureUnitFolder — folderId:', driveFolderId, '| unit:', folderName, '| token starts:', token?.slice(0,20));
     const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`, {
         headers: { Authorization: `Bearer ${token}` }
     });
+    const resText = await res.text();
+    console.log('[Drive] folder list response', res.status, resText);
     if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
+        let e = {}; try { e = JSON.parse(resText); } catch {}
         throw new Error(e?.error?.message || `Drive folder lookup failed (${res.status})`);
     }
-    const data = await res.json();
+    const data = JSON.parse(resText);
     if (data.files?.length) return data.files[0];
 
     const createRes = await fetch('https://www.googleapis.com/drive/v3/files?fields=id,name', {
