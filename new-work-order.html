@@ -724,9 +724,13 @@
                         pdfDriveLink: pdfMeta.webViewLink,
                         pdfDriveFileId: pdfMeta.id,
                         pdfDriveName: pdfMeta.name,
+                        pdfDriveFolderLink: pdfMeta.folderLink || '',
                         pdfGeneratedAt: new Date().toISOString()
                     });
-                    setStatus('✓ Completed and PDF uploaded', 'text-green-400');
+                    // Show clickable link to the Drive folder
+                    const statusEl = document.getElementById('save-status');
+                    statusEl.innerHTML = `✓ PDF uploaded — <a href="${pdfMeta.folderLink || pdfMeta.webViewLink}" target="_blank" style="text-decoration:underline;color:#60a5fa;">Open in Drive</a>`;
+                    statusEl.className = 'text-center text-sm text-green-400 h-5';
                 } catch (pdfErr) {
                     console.error('[PDF upload error]', pdfErr.message, pdfErr.stack);
                     setStatus('PDF upload failed: ' + pdfErr.message + ' — redirecting in 10s...', 'text-yellow-400');
@@ -736,7 +740,7 @@
             } else {
                 setStatus('✓ Completed (Drive not configured)', 'text-green-400');
             }
-            setTimeout(() => window.location.href = 'queue.html', driveReady ? 3000 : 1800);
+            setTimeout(() => window.location.href = 'queue.html', driveReady ? 6000 : 1800);
         } catch(e) { setStatus('Error: ' + e.message, 'text-red-400'); }
     }
 
@@ -936,46 +940,42 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
+        // generatePrintView() populates and shows #print-preview (white bg, black text, all data filled)
         generatePrintView();
-        const html = buildPrintHTML();
+        const pp = document.getElementById('print-preview');
 
-        // Render in a hidden iframe so all styles apply correctly
-        const iframe = document.createElement('iframe');
-        iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:816px;height:1056px;border:none;visibility:hidden;';
-        document.body.appendChild(iframe);
+        // Scroll to top so html2canvas captures from the beginning
+        window.scrollTo(0, 0);
+        // Let the browser finish painting
+        await new Promise(r => setTimeout(r, 500));
 
-        try {
-            await new Promise((resolve, reject) => {
-                iframe.onload = resolve;
-                iframe.onerror = reject;
-                iframe.srcdoc = html;
-            });
+        // Capture the visible, fully-rendered print-preview div directly
+        const blob = await window.html2pdf()
+            .set({
+                margin: 0.3,
+                filename: 'worksheet.pdf',
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, windowWidth: pp.scrollWidth },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            })
+            .from(pp)
+            .output('blob');
 
-            // Extra wait for fonts/images to render inside the iframe
-            await new Promise(r => setTimeout(r, 600));
+        console.log('[PDF] blob size:', blob.size, 'bytes');
+        if (blob.size < 5000) console.warn('[PDF] WARNING: blob is very small, may be blank');
 
-            const iframeBody = iframe.contentDocument.body;
-            const blob = await window.html2pdf()
-                .set({
-                    margin: 0.5,
-                    filename: 'worksheet.pdf',
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 816 },
-                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-                })
-                .from(iframeBody)
-                .output('blob');
-            return blob;
-        } finally {
-            iframe.remove();
-            showFormView();
-        }
+        // Switch back to form view
+        showFormView();
+        return blob;
     }
 
     async function generateAndUploadCompletionPdf(workOrderNumber) {
         const unit = document.getElementById('unit-number').value.trim();
         const fileName = buildPdfFileName(workOrderNumber);
         const pdfBlob = await generatePdfBlob();
+        if (pdfBlob.size < 1000) {
+            throw new Error('PDF generation produced an empty file. Please try again.');
+        }
         return await uploadPdfToUnitFolder(pdfBlob, fileName, unit);
     }
 

@@ -20,7 +20,7 @@ const SETTINGS_KEY = 'shopAppSettings';
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const TOKEN_KEY = 'shopDriveAccessToken_v4';
 const TOKEN_EXPIRY_KEY = 'shopDriveAccessTokenExpiry_v4';
-const FOLDER_CACHE_KEY = 'shopDriveFolderCache';
+const FOLDER_CACHE_KEY = 'shopDriveFolderCache_v2';
 
 let _accessToken = null;
 let _tokenClient = null;
@@ -155,6 +155,17 @@ async function uploadToDrive({ blob, name, mimeType, parentId }) {
 
     const fileMeta = await uploadRes.json();
     console.log('[Drive] upload raw response:', JSON.stringify(fileMeta));
+
+    // Verify file actually exists and get its parents
+    try {
+        const verifyRes = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${fileMeta.id}?fields=id,name,parents,mimeType,size,webViewLink`,
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const verifyData = await verifyRes.json();
+        console.log('[Drive] upload verify:', JSON.stringify(verifyData));
+    } catch(e) { console.warn('[Drive] verify failed (non-critical):', e.message); }
+
     await makePublic(fileMeta.id, token);
     return buildDriveMeta(fileMeta);
 }
@@ -213,12 +224,16 @@ export async function ensureUnitFolder(unitNumber) {
 
 export async function uploadPdfToUnitFolder(blob, fileName, unitNumber) {
     const folder = await ensureUnitFolder(unitNumber);
-    return uploadToDrive({
+    const meta = await uploadToDrive({
         blob,
         name: fileName,
         mimeType: 'application/pdf',
         parentId: folder.id
     });
+    // Attach folder info so caller can show direct link
+    meta.folderId = folder.id;
+    meta.folderLink = `https://drive.google.com/drive/folders/${folder.id}`;
+    return meta;
 }
 
 /**
