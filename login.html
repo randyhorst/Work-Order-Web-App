@@ -56,16 +56,20 @@
     const settings = JSON.parse(getItem('shopAppSettings') || '{}');
     document.getElementById('company-name-display').textContent = settings.companyName || 'Shop Work Orders';
 
-    await initFirebaseAsync();
+    let firebaseOk = false;
 
-    onAuthChange(user => { if (user) window.location.href = 'queue.html'; });
-
+    // Attach ALL event listeners FIRST before any async operations
     document.getElementById('login-btn').addEventListener('click', async () => {
         const email = document.getElementById('login-email').value.trim();
         const password = document.getElementById('login-password').value;
         const errEl = document.getElementById('login-error');
         errEl.classList.add('hidden');
         if (!email || !password) { errEl.textContent = 'Please enter email and password.'; errEl.classList.remove('hidden'); return; }
+        if (!firebaseOk) {
+            errEl.textContent = 'App is still loading. Please wait a moment and try again.';
+            errEl.classList.remove('hidden');
+            return;
+        }
         try {
             document.getElementById('login-btn').textContent = 'Signing in...';
             await loginUser(email, password);
@@ -74,7 +78,7 @@
             errEl.classList.remove('hidden');
             document.getElementById('login-btn').textContent = 'Sign In';
         }
-    });
+    }, { passive: false });
 
     document.getElementById('login-password').addEventListener('keydown', e => {
         if (e.key === 'Enter') document.getElementById('login-btn').click();
@@ -99,7 +103,18 @@
             errEl.textContent = e.message.includes('user-not-found') ? 'No account found with that email.' : e.message;
             errEl.classList.remove('hidden');
         }
-    });
+    }, { passive: false });
+
+    // Now initialize Firebase (async) - buttons already work above
+    try {
+        firebaseOk = await initFirebaseAsync();
+        console.log('[Login] Firebase init:', firebaseOk);
+        if (firebaseOk) {
+            onAuthChange(user => { if (user) window.location.href = 'queue.html'; });
+        }
+    } catch(e) {
+        console.error('[Login] Firebase init error:', e);
+    }
 </script>
 </body>
 </html>

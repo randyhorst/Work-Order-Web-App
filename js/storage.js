@@ -97,7 +97,7 @@ function pushToSWCache(key, value) {
  */
 export async function getItemFromSWCache(key) {
     try {
-        const cacheNames = ['shop-wo-app-v5', 'shop-wo-app-v4', 'shop-wo-app-v3'];
+        const cacheNames = ['shop-wo-app-v6', 'shop-wo-app-v5', 'shop-wo-app-v4', 'shop-wo-app-v3'];
         for (const cacheName of cacheNames) {
             const cache = await caches.open(cacheName);
             const resp = await cache.match('/app-config-store');

@@ -38,6 +38,7 @@
             <button onclick="setFilter('in_progress')" data-filter="in_progress" class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-gray-400 hover:text-white transition">In Progress</button>
             <button onclick="setFilter('waiting_parts')" data-filter="waiting_parts" class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-gray-400 hover:text-white transition">Waiting Parts</button>
             <button onclick="setFilter('waiting_randy')" data-filter="waiting_randy" class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-gray-400 hover:text-white transition">Waiting on Randy</button>
+            <button onclick="setFilter('review')" data-filter="review" class="filter-btn px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-600 text-gray-400 hover:text-white transition">Review</button>
         </div>
         <input type="text" id="queue-search" placeholder="Search queue..." class="ml-auto bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500">
     </div>
@@ -100,6 +101,7 @@
         in_progress:   { label: 'In Progress', cls: 'badge-in_progress' },
         waiting_parts: { label: 'Waiting Parts', cls: 'badge-waiting_parts' },
         waiting_randy: { label: 'Waiting on Randy', cls: 'badge-waiting_randy' },
+        review:        { label: 'Review', cls: 'badge-review' },
         completed:     { label: 'Completed', cls: 'badge-completed' }
     };
 
@@ -167,6 +169,7 @@
                             <option value="in_progress" ${wo.status==='in_progress'?'selected':''}>In Progress</option>
                             <option value="waiting_parts" ${wo.status==='waiting_parts'?'selected':''}>Waiting Parts</option>
                             <option value="waiting_randy" ${wo.status==='waiting_randy'?'selected':''}>Waiting on Randy</option>
+                            <option value="review" ${wo.status==='review'?'selected':''}>Review</option>
                         </select>
                     </div>` : ''}
                 </div>

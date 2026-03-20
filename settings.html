@@ -381,27 +381,46 @@
     } else {
         setSettingsLocked(true);
 
-        // Check if logged-in user is admin
+        // Wait for Firebase Auth to finish loading before checking profile
         try {
-            currentProfile = await getCurrentUserProfile();
-            console.log('[Settings] Current profile:', currentProfile);
-            if (currentProfile?.role === 'admin') {
-                console.log('[Settings] Admin detected - unlocking settings');
-                setSettingsLocked(false);
-                document.getElementById('settings-access-note')?.classList.add('hidden');
-            } else {
-                console.log('[Settings] Not admin or not logged in - settings locked');
-                document.getElementById('settings-access-note')?.classList.remove('hidden');
-            }
-            if (currentProfile && currentProfile.role !== 'admin') {
-                const users = await getUsers();
-                const hasAdmin = users.some(u => u.role === 'admin');
-                if (!hasAdmin) {
-                    document.getElementById('claim-admin-section').classList.remove('hidden');
-                }
-            }
+            const { onAuthChange } = await import('./js/auth.js');
+            await new Promise((resolve) => {
+                const unsub = onAuthChange(async (user) => {
+                    unsub();
+                    console.log('[Settings] Auth state ready, user:', user?.email || 'none');
+                    if (!user) {
+                        console.log('[Settings] Not logged in - settings locked');
+                        document.getElementById('settings-access-note')?.classList.remove('hidden');
+                        resolve();
+                        return;
+                    }
+                    try {
+                        currentProfile = await getCurrentUserProfile();
+                        console.log('[Settings] Current profile:', currentProfile);
+                        if (currentProfile?.role === 'admin') {
+                            console.log('[Settings] Admin detected - unlocking settings');
+                            setSettingsLocked(false);
+                            document.getElementById('settings-access-note')?.classList.add('hidden');
+                        } else {
+                            console.log('[Settings] Not admin - settings locked');
+                            document.getElementById('settings-access-note')?.classList.remove('hidden');
+                        }
+                        if (currentProfile && currentProfile.role !== 'admin') {
+                            const users = await getUsers();
+                            const hasAdmin = users.some(u => u.role === 'admin');
+                            if (!hasAdmin) {
+                                document.getElementById('claim-admin-section').classList.remove('hidden');
+                            }
+                        }
+                    } catch(e) {
+                        console.error('[Settings] Profile check failed:', e);
+                        document.getElementById('settings-access-note')?.classList.remove('hidden');
+                    }
+                    resolve();
+                });
+            });
         } catch(e) {
-            console.error('[Settings] Profile check failed:', e);
+            console.error('[Settings] Auth listener failed:', e);
             document.getElementById('settings-access-note')?.classList.remove('hidden');
         }
     }
