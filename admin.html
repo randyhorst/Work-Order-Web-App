@@ -909,14 +909,11 @@
         showSettingsStatus('drive-save-status', '✓ Drive settings saved.', 'text-green-400');
     };
 
-    // Init first tab and load users immediately
-    showTab('users');
-    loadUsers(); // Explicitly load users on page load
-
-    // Hash routing
+    // Hash routing first
     if (location.hash === '#equipment') showTab('equipment');
-    if (location.hash === '#checklists') showTab('checklists');
-    if (location.hash === '#settings') showTab('settings');
+    else if (location.hash === '#checklists') showTab('checklists');
+    else if (location.hash === '#settings') showTab('settings');
+    else showTab('users'); // Default to users tab, which will trigger loadUsers()
 </script>
 </body>
 </html>
