@@ -361,12 +361,13 @@
         console.log('[Settings] Firebase init failed:', e.message);
     }
 
-    // Try to render nav if logged in
+    // Render nav
     try {
         const { renderNav } = await import('./js/nav.js');
-        renderNav('settings.html');
+        await renderNav('settings.html');
+        console.log('[Settings] Nav rendered successfully');
     } catch(e) {
-        console.log('[Settings] Nav render failed:', e.message);
+        console.error('[Settings] Nav render failed:', e);
     }
 
     // If Firebase isn't configured yet, allow settings access for first-time setup
