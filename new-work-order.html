@@ -944,6 +944,10 @@ ${inspHTML}${photoHTML}
         generatePrintView();
         const pp = document.getElementById('print-preview');
 
+        // Hide non-data elements (buttons, nav) before capture
+        const noPrintEls = pp.querySelectorAll('.no-print');
+        noPrintEls.forEach(el => el.style.display = 'none');
+
         // Scroll to top so html2canvas captures from the beginning
         window.scrollTo(0, 0);
         // Let the browser finish painting
@@ -964,7 +968,8 @@ ${inspHTML}${photoHTML}
         console.log('[PDF] blob size:', blob.size, 'bytes');
         if (blob.size < 5000) console.warn('[PDF] WARNING: blob is very small, may be blank');
 
-        // Switch back to form view
+        // Restore hidden elements and switch back to form view
+        noPrintEls.forEach(el => el.style.display = '');
         showFormView();
         return blob;
     }
