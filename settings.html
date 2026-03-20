@@ -128,6 +128,15 @@
         </div>
         <button onclick="saveDriveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Save Drive Settings</button>
         <p id="drive-save-status" class="text-sm h-5"></p>
+
+        <div class="border-t border-gray-700 pt-4 mt-2">
+            <div class="flex items-center gap-3">
+                <button id="btn-connect-drive" onclick="connectDriveAccount()" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">🔗 Connect Google Account</button>
+                <span id="drive-account-info" class="text-sm text-gray-400"></span>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Sign in with the Google account whose Drive you want files uploaded to. Use this to switch accounts anytime.</p>
+            <p id="drive-connect-status" class="text-sm h-5 mt-1"></p>
+        </div>
     </div>
 
     <!-- Claim Admin (shown only when no admin exists yet) -->
@@ -175,6 +184,7 @@
     import { registerUser, getCurrentUserProfile, onAuthChange } from './js/auth.js';
     import { getUsers, updateUser } from './js/db.js';
     import { getItem, setItem } from './js/storage.js';
+    import { forceReAuth } from './js/drive-storage.js';
 
     const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
     const APP_SETTINGS_KEY = 'shopAppSettings';
@@ -334,6 +344,29 @@
             }
         }
     } catch(e) {}
+
+    window.connectDriveAccount = async function() {
+        const btn = document.getElementById('btn-connect-drive');
+        const statusEl = document.getElementById('drive-connect-status');
+        const infoEl = document.getElementById('drive-account-info');
+        btn.disabled = true;
+        btn.textContent = '⏳ Connecting...';
+        statusEl.textContent = '';
+        try {
+            const account = await forceReAuth();
+            infoEl.textContent = `✓ Connected as ${account.email}`;
+            infoEl.className = 'text-sm text-green-400 font-medium';
+            btn.textContent = '🔄 Switch Account';
+            statusEl.textContent = '✓ Google Drive connected! Uploads will go to this account.';
+            statusEl.className = 'text-sm h-5 mt-1 text-green-400';
+        } catch(e) {
+            statusEl.textContent = 'Connection failed: ' + e.message;
+            statusEl.className = 'text-sm h-5 mt-1 text-red-400';
+            btn.textContent = '🔗 Connect Google Account';
+        } finally {
+            btn.disabled = false;
+        }
+    };
 
     window.claimAdmin = async function() {
         try {

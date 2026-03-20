@@ -264,6 +264,49 @@ export async function deleteFileFromDrive(driveFileId) {
     } catch(e) { /* non-critical */ }
 }
 
+/**
+ * Force re-authentication: clears all cached tokens and folder cache,
+ * then triggers a fresh OAuth consent popup so the user can pick a different Google account.
+ * Returns the email/account info if available.
+ */
+export async function forceReAuth() {
+    // Clear cached tokens
+    _accessToken = null;
+    _tokenExpiresAt = 0;
+    try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
+    try { sessionStorage.removeItem(TOKEN_EXPIRY_KEY); } catch {}
+    // Clear cached folder IDs (they belong to the old account)
+    try { localStorage.removeItem(FOLDER_CACHE_KEY); } catch {}
+
+    const { googleClientId } = getSettings();
+    if (!googleClientId) throw new Error('Set your OAuth Client ID first, then connect.');
+
+    await loadGSI();
+
+    return new Promise((resolve, reject) => {
+        const client = window.google.accounts.oauth2.initTokenClient({
+            client_id: googleClientId,
+            scope: SCOPE,
+            prompt: 'consent',
+            callback: async (resp) => {
+                if (resp.error) { reject(new Error(resp.error)); return; }
+                cacheToken(resp.access_token, resp.expires_in);
+                // Fetch the user's email to show which account is connected
+                try {
+                    const info = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                        headers: { Authorization: `Bearer ${resp.access_token}` }
+                    });
+                    const data = await info.json();
+                    resolve({ email: data.email, name: data.name, picture: data.picture });
+                } catch {
+                    resolve({ email: '(connected)' });
+                }
+            }
+        });
+        client.requestAccessToken({ prompt: 'consent' });
+    });
+}
+
 /** Check if Drive is configured (only client ID is required; folder is optional with fallback). */
 export function isDriveConfigured() {
     const { googleClientId } = getSettings();
