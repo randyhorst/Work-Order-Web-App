@@ -158,8 +158,8 @@
     </div>
 
     <!-- Settings Access -->
-    <div id="settings-access-note" class="bg-gray-800 border border-yellow-700 rounded-xl p-6 space-y-3">
-        <h2 class="text-lg font-bold text-yellow-300">� Admin Access Required</h2>
+    <div id="settings-access-note" class="hidden bg-gray-800 border border-yellow-700 rounded-xl p-6 space-y-3">
+        <h2 class="text-lg font-bold text-yellow-300">🔒 Admin Access Required</h2>
         <p class="text-sm text-gray-400">App settings and Google Drive connection are restricted to signed-in admin users only.</p>
         <p class="text-sm text-gray-400">Use the normal login screen to sign in as an admin before changing company, Firebase, or Drive settings.</p>
     </div>
@@ -391,6 +391,7 @@
                 document.getElementById('settings-access-note')?.classList.add('hidden');
             } else {
                 console.log('[Settings] Not admin or not logged in - settings locked');
+                document.getElementById('settings-access-note')?.classList.remove('hidden');
             }
             if (currentProfile && currentProfile.role !== 'admin') {
                 const users = await getUsers();
@@ -401,6 +402,7 @@
             }
         } catch(e) {
             console.error('[Settings] Profile check failed:', e);
+            document.getElementById('settings-access-note')?.classList.remove('hidden');
         }
     }
 

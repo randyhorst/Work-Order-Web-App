@@ -909,8 +909,9 @@
         showSettingsStatus('drive-save-status', '✓ Drive settings saved.', 'text-green-400');
     };
 
-    // Init first tab
+    // Init first tab and load users immediately
     showTab('users');
+    loadUsers(); // Explicitly load users on page load
 
     // Hash routing
     if (location.hash === '#equipment') showTab('equipment');
