@@ -32,8 +32,10 @@
     if (settings.companyName) document.getElementById('company-title').textContent = settings.companyName;
 
     const ok = await initFirebaseAsync();
-    if (!ok) { window.location.href = `settings.html${bootstrapSearch}`; }
-    else {
+    if (!ok) {
+        // Firebase not configured - go to login which will show setup warning
+        window.location.href = `login.html${bootstrapSearch}`;
+    } else {
         onAuthChange(user => {
             window.location.href = user ? 'queue.html' : `login.html${bootstrapSearch}`;
         });
