@@ -145,17 +145,8 @@
         </div>
         <button onclick="saveDriveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Save Drive Settings</button>
         <p id="drive-save-status" class="text-sm h-5"></p>
-
-        <div class="border-2 border-green-700 bg-green-950/40 rounded-xl p-4 space-y-3">
-            <div>
-                <h3 class="text-base font-bold text-green-300">Google Account for Drive Uploads</h3>
-                <p class="text-sm text-gray-300 mt-1">Choose the exact Google account whose Drive should receive work order PDFs and documents.</p>
-            </div>
-            <button id="btn-connect-drive" onclick="if(typeof connectDriveAccount === 'undefined'){alert('Loading… please wait a moment and try again.');}else{connectDriveAccount();}" class="w-full bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg text-sm font-semibold transition">🔗 Connect / Switch Google Account</button>
-            <span id="drive-account-info" class="block text-sm text-gray-300"></span>
-            <p class="text-xs text-gray-400">Use this anytime to switch uploads to a different Gmail/Google Drive account.</p>
-            <p id="drive-connect-status" class="text-sm h-5"></p>
-        </div>
+        <span id="drive-account-info" class="block text-sm text-gray-300"></span>
+        <p id="drive-connect-status" class="text-sm h-5"></p>
     </div>
 
     <!-- Claim Admin (shown only when no admin exists yet) -->
@@ -166,30 +157,11 @@
         <p id="claim-status" class="text-sm h-5"></p>
     </div>
 
-    <!-- Admin First-Time Setup -->
-    <div class="bg-gray-800 border border-yellow-700 rounded-xl p-6 space-y-4">
-        <h2 class="text-lg font-bold text-yellow-300">🚀 First-Time Admin Setup</h2>
-        <p class="text-sm text-gray-400">
-            After saving your Firebase config above, use this section to create the very first admin account for your company.
-            You only need to do this once.
-        </p>
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="block text-xs text-gray-400 mb-1">Admin Name</label>
-                <input type="text" id="setup-name" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Your Name">
-            </div>
-            <div>
-                <label class="block text-xs text-gray-400 mb-1">Admin Email</label>
-                <input type="email" id="setup-email" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="you@email.com">
-            </div>
-            <div>
-                <label class="block text-xs text-gray-400 mb-1">Password (min 6 chars)</label>
-                <input type="password" id="setup-password" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="••••••••">
-            </div>
-        </div>
-        <div id="setup-error" class="hidden text-red-400 text-sm"></div>
-        <div id="setup-success" class="hidden text-green-400 text-sm"></div>
-        <button onclick="createAdminAccount()" class="bg-yellow-600 hover:bg-yellow-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Create Admin Account</button>
+    <!-- Settings Access -->
+    <div id="settings-access-note" class="bg-gray-800 border border-yellow-700 rounded-xl p-6 space-y-3">
+        <h2 class="text-lg font-bold text-yellow-300">� Admin Access Required</h2>
+        <p class="text-sm text-gray-400">App settings and Google Drive connection are restricted to signed-in admin users only.</p>
+        <p class="text-sm text-gray-400">Use the normal login screen to sign in as an admin before changing company, Firebase, or Drive settings.</p>
     </div>
 
     <!-- Back to app -->
@@ -208,6 +180,31 @@
     const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
     const APP_SETTINGS_KEY = 'shopAppSettings';
     const bootstrapSearch = window.location.search || '';
+    let currentProfile = null;
+
+    function isAdminUser() {
+        return currentProfile && currentProfile.role === 'admin';
+    }
+
+    function requireAdminAction(message = 'You must be signed in as an admin to change settings.') {
+        if (isAdminUser()) return true;
+        alert(message);
+        return false;
+    }
+
+    function setSettingsLocked(locked) {
+        document.querySelectorAll('input, textarea, select, button').forEach(el => {
+            if (el.id === 'btn-connect-drive-top') return;
+            if (el.closest('#claim-admin-section')) return;
+            if (locked) el.setAttribute('disabled', 'disabled');
+            else el.removeAttribute('disabled');
+        });
+        const topBtn = document.getElementById('btn-connect-drive-top');
+        if (topBtn) {
+            if (locked) topBtn.setAttribute('disabled', 'disabled');
+            else topBtn.removeAttribute('disabled');
+        }
+    }
 
     function updateBootstrapLink(projectId) {
         const el = document.getElementById('bootstrap-link');
@@ -291,6 +288,7 @@
     }
 
     window.saveFirebaseConfig = function() {
+        if (!requireAdminAction()) return;
         const config = {
             apiKey: document.getElementById('cfg-apiKey').value.trim(),
             authDomain: document.getElementById('cfg-authDomain').value.trim(),
@@ -311,6 +309,7 @@
     };
 
     window.saveCompanySettings = function() {
+        if (!requireAdminAction()) return;
         const existing = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
         const updated = {
             ...existing,
@@ -324,6 +323,7 @@
     };
 
     window.saveDriveSettings = function() {
+        if (!requireAdminAction()) return;
         const existing = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
         const clientId = document.getElementById('cfg-googleClientId').value.trim();
         const folderId = document.getElementById('cfg-driveFolderId').value.trim();
@@ -344,29 +344,7 @@
     };
 
     window.createAdminAccount = async function() {
-        const name = document.getElementById('setup-name').value.trim();
-        const email = document.getElementById('setup-email').value.trim();
-        const password = document.getElementById('setup-password').value;
-        const settings = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
-        const companyId = settings.companyId;
-        const errEl = document.getElementById('setup-error');
-        const succEl = document.getElementById('setup-success');
-        errEl.classList.add('hidden'); succEl.classList.add('hidden');
-
-        if (!name || !email || !password) { errEl.textContent = 'All fields are required.'; errEl.classList.remove('hidden'); return; }
-        if (!companyId) { errEl.textContent = 'Save Company Settings with a Company ID first.'; errEl.classList.remove('hidden'); return; }
-        if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.classList.remove('hidden'); return; }
-
-        try {
-            const ok = initFirebase();
-            if (!ok) { errEl.textContent = 'Save Firebase config first.'; errEl.classList.remove('hidden'); return; }
-            await registerUser(email, password, name, companyId, 'admin');
-            succEl.textContent = '✓ Admin account created! Go to Login to sign in.';
-            succEl.classList.remove('hidden');
-        } catch(e) {
-            errEl.textContent = e.message.includes('already-in-use') ? 'That email already has an account.' : e.message;
-            errEl.classList.remove('hidden');
-        }
+        alert('Admin account creation from the settings page has been disabled. Sign in with an existing admin account to manage settings.');
     };
 
     function showStatus(id, msg, cls) {
@@ -384,10 +362,16 @@
         renderNav('settings.html');
     } catch(e) {}
 
+    setSettingsLocked(true);
+
     // Check if logged-in user needs to claim admin (no admin exists in company yet)
     try {
-        const profile = await getCurrentUserProfile();
-        if (profile && profile.role !== 'admin') {
+        currentProfile = await getCurrentUserProfile();
+        if (currentProfile?.role === 'admin') {
+            setSettingsLocked(false);
+            document.getElementById('settings-access-note')?.classList.add('hidden');
+        }
+        if (currentProfile && currentProfile.role !== 'admin') {
             const users = await getUsers();
             const hasAdmin = users.some(u => u.role === 'admin');
             if (!hasAdmin) {
@@ -397,14 +381,10 @@
     } catch(e) {}
 
     window.connectDriveAccount = async function() {
-        const btn = document.getElementById('btn-connect-drive');
         const topBtn = document.getElementById('btn-connect-drive-top');
         const statusEl = document.getElementById('drive-connect-status');
         const infoEl = document.getElementById('drive-account-info');
-        if (btn) {
-            btn.disabled = true;
-            btn.textContent = '⏳ Connecting...';
-        }
+        if (!requireAdminAction('You must be signed in as an admin to connect Google Drive.')) return;
         if (topBtn) {
             topBtn.disabled = true;
             topBtn.textContent = '⏳ Connecting...';
@@ -414,17 +394,14 @@
             const account = await forceReAuth();
             infoEl.textContent = `✓ Connected as ${account.email}`;
             infoEl.className = 'text-sm text-green-400 font-medium';
-            if (btn) btn.textContent = '🔄 Switch Account';
             if (topBtn) topBtn.textContent = '🔄 Switch Account';
             statusEl.textContent = '✓ Google Drive connected! Uploads will go to this account.';
             statusEl.className = 'text-sm h-5 mt-1 text-green-400';
         } catch(e) {
             statusEl.textContent = 'Connection failed: ' + e.message;
             statusEl.className = 'text-sm h-5 mt-1 text-red-400';
-            if (btn) btn.textContent = '🔗 Connect Google Account';
             if (topBtn) topBtn.textContent = '🔗 Connect / Switch Google Account';
         } finally {
-            if (btn) btn.disabled = false;
             if (topBtn) topBtn.disabled = false;
         }
     };
