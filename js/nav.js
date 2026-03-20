@@ -90,27 +90,50 @@ export async function renderNav(activePage = '') {
         </div>
     `;
 
-    // Hamburger toggle
-    document.getElementById('nav-hamburger')?.addEventListener('click', () => {
-        document.getElementById('nav-drawer')?.classList.toggle('hidden');
-    });
+    // Hamburger toggle with defensive checks
+    const hamburger = document.getElementById('nav-hamburger');
+    if (hamburger) {
+        hamburger.addEventListener('click', (e) => {
+            e.preventDefault();
+            const drawer = document.getElementById('nav-drawer');
+            if (drawer) {
+                drawer.classList.toggle('hidden');
+                console.log('[Nav] Hamburger toggled, drawer hidden:', drawer.classList.contains('hidden'));
+            }
+        }, { passive: false });
+    }
 
     // Close drawer when a link is tapped
     document.querySelectorAll('#nav-drawer a').forEach(a => {
         a.addEventListener('click', () => {
-            document.getElementById('nav-drawer')?.classList.add('hidden');
+            const drawer = document.getElementById('nav-drawer');
+            if (drawer) drawer.classList.add('hidden');
         });
     });
 
-    document.getElementById('theme-toggle-btn')?.addEventListener('click', () => {
-        toggleTheme(cachedProfile?.uid || null);
-    });
+    // Theme toggle with defensive checks
+    const themeBtn = document.getElementById('theme-toggle-btn');
+    if (themeBtn) {
+        themeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('[Nav] Theme toggle clicked');
+            toggleTheme(cachedProfile?.uid || null);
+        }, { passive: false });
+    }
 
-    document.getElementById('logout-btn')?.addEventListener('click', async () => {
-        clearNavCache();
-        await logoutUser();
-        window.location.href = 'login.html';
-    });
+    // Logout with defensive checks
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            console.log('[Nav] Logout clicked');
+            clearNavCache();
+            await logoutUser();
+            window.location.href = 'login.html';
+        }, { passive: false });
+    }
+    
+    console.log('[Nav] Event handlers attached - hamburger:', !!hamburger, 'theme:', !!themeBtn, 'logout:', !!logoutBtn);
 
     // Init theme immediately (don't await)
     initTheme(cachedProfile?.uid || null);

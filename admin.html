@@ -306,28 +306,45 @@
     async function loadUsers() {
         const container = document.getElementById('users-list');
         const cachedUsers = getCachedUsers();
+        console.log('[Admin Users] Cached users:', cachedUsers.length);
+        
         if (cachedUsers.length) {
             renderUsers(container, cachedUsers);
         } else {
             container.innerHTML = '<div class="text-gray-500 text-sm">Loading users...</div>';
         }
-        if (usersLoadPromise) return usersLoadPromise;
+        
+        if (usersLoadPromise) {
+            console.log('[Admin Users] Load already in progress, waiting...');
+            return usersLoadPromise;
+        }
+        
         usersLoadPromise = (async () => {
             try {
+                console.log('[Admin Users] Fetching users from Firestore...');
                 const users = await getUsers();
+                console.log('[Admin Users] Fetched users:', users.length, users);
                 setCachedUsers(users);
                 renderUsers(container, users);
+                console.log('[Admin Users] Users rendered successfully');
             } catch(e) {
+                console.error('[Admin Users] Error loading users:', e);
+                const errorMsg = `Error loading users: ${e.message}. Check console for details.`;
                 if (!cachedUsers.length) {
-                    container.innerHTML = `<p class="text-red-400 text-sm">Error: ${e.message}</p>`;
+                    container.innerHTML = `<p class="text-red-400 text-sm">${errorMsg}</p>`;
+                } else {
+                    console.warn('[Admin Users] Using cached users due to error');
                 }
             } finally {
                 usersLoadPromise = null;
             }
         })();
+        
         try {
             await usersLoadPromise;
-        } catch {}
+        } catch(e) {
+            console.error('[Admin Users] Promise error:', e);
+        }
     }
 
     window.changeRole = async function(userId, role) {
