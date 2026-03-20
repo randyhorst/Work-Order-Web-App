@@ -26,7 +26,7 @@
         <button onclick="showTab('checklists')" data-tab="checklists" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">✅ Checklists</button>
         <button onclick="showTab('export')" data-tab="export" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">📤 Export</button>
         <button onclick="showTab('batch')" data-tab="batch" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">📥 Batch Import</button>
-        <button onclick="showTab('settings')" data-tab="settings" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">🛠️ Settings</button>
+        <button onclick="goToSettings()" data-tab="settings" class="tab-btn px-4 py-2 rounded-t-lg text-sm font-medium text-gray-400 hover:text-white transition">🛠️ Settings</button>
     </div>
 
     <!-- USERS TAB -->
@@ -205,133 +205,22 @@
             <div class="flex flex-wrap gap-3">
                 <button onclick="previewExport()" class="bg-gray-600 hover:bg-gray-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Preview Results</button>
                 <button onclick="downloadCSV()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">📥 Download CSV</button>
-                <button onclick="showTab('settings')" class="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-5 py-2.5 rounded-lg text-sm font-semibold transition">⚙️ Configure Drive Export</button>
+                <button onclick="goToSettings()" class="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-300 px-5 py-2.5 rounded-lg text-sm font-semibold transition">⚙️ Configure Drive Export</button>
             </div>
         </div>
     </div>
 
     <!-- SETTINGS TAB -->
     <div id="tab-settings" class="tab-content hidden space-y-6">
-        <div>
-            <h2 class="text-lg font-bold text-white">App Settings</h2>
-            <p class="text-gray-400 text-sm mt-1">Configure Firebase, company branding, and Google Drive integration. Settings are stored locally in this browser.</p>
-        </div>
-
-        <!-- Firebase Configuration -->
-        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-md font-bold text-white">🔥 Firebase Configuration</h2>
-                <span id="firebase-status" class="text-xs px-3 py-1 rounded-full bg-gray-700 text-gray-400">Not configured</span>
+        <div class="bg-indigo-950/40 border border-indigo-700 rounded-xl p-6 space-y-4">
+            <div>
+                <h2 class="text-lg font-bold text-white">Settings moved to one canonical page</h2>
+                <p class="text-sm text-gray-300 mt-1">To avoid old/new settings getting out of sync, all app, Firebase, and Google Drive settings now live only on the dedicated settings page.</p>
             </div>
-            <p class="text-sm text-gray-400">
-                Create a free project at <a href="https://console.firebase.google.com" target="_blank" class="text-indigo-400 underline">console.firebase.google.com</a>,
-                enable <strong>Authentication (Email/Password)</strong>, <strong>Firestore Database</strong>, then register a Web App to get these values.
-            </p>
-            <div class="grid grid-cols-1 gap-3">
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">API Key</label>
-                    <input type="text" id="cfg-apiKey" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="AIzaSy...">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Auth Domain</label>
-                        <input type="text" id="cfg-authDomain" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="project.firebaseapp.com">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Project ID</label>
-                        <input type="text" id="cfg-projectId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="my-project-id">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Storage Bucket</label>
-                        <input type="text" id="cfg-storageBucket" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="project.appspot.com">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Messaging Sender ID</label>
-                        <input type="text" id="cfg-messagingSenderId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="123456789">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">App ID</label>
-                    <input type="text" id="cfg-appId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="1:123456789:web:abcdef">
-                </div>
+            <div class="flex flex-wrap gap-3">
+                <button onclick="goToSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Open Settings Page</button>
             </div>
-            <button onclick="saveFirebaseConfig()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Save Firebase Config</button>
-            <p id="firebase-save-status" class="text-sm h-5"></p>
-        </div>
-
-        <!-- Company Settings -->
-        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
-            <h2 class="text-md font-bold text-white">🏢 Company Settings</h2>
-            <p class="text-sm text-gray-400">These settings are used on the login page and on printed PDF reports.</p>
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">Company Name</label>
-                    <input type="text" id="cfg-companyName" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., Pineview Vegetation Management">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">Company ID (Firestore collection key)</label>
-                    <input type="text" id="cfg-companyId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., pineview-2026 (no spaces, lowercase)">
-                    <p class="text-xs text-gray-500 mt-1">This is how your company's data is stored in Firestore. Use a unique short ID.</p>
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">Company Logo</label>
-                    <div class="flex items-center gap-3">
-                        <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-                            📷 Upload Logo
-                            <input type="file" id="logo-file-upload" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" class="hidden">
-                        </label>
-                        <span id="logo-file-name" class="text-xs text-gray-400">No file chosen</span>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">PNG, JPEG, or SVG. Will be embedded as base64 in printed reports.</p>
-                </div>
-                <div id="logo-preview" class="hidden">
-                    <p class="text-xs text-gray-400 mb-2">Logo preview:</p>
-                    <div class="flex items-center gap-3">
-                        <img id="logo-preview-img" src="" alt="Logo" class="max-h-16 max-w-48 rounded-lg border border-gray-600 bg-white p-1">
-                        <button onclick="removeLogo()" class="text-red-400 hover:text-red-300 text-xs border border-red-800 px-3 py-1.5 rounded-lg transition">Remove</button>
-                    </div>
-                </div>
-            </div>
-            <button onclick="saveCompanySettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Save Company Settings</button>
-            <p id="company-save-status" class="text-sm h-5"></p>
-        </div>
-
-        <!-- Google Drive Settings -->
-        <div class="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-md font-bold text-white">📁 Google Drive — Photo &amp; Document Storage</h2>
-                <span id="drive-status" class="text-xs px-3 py-1 rounded-full bg-gray-700 text-gray-400">Not configured</span>
-            </div>
-            <p class="text-sm text-gray-400">
-                Photos and documents attached to work orders are uploaded directly to your Google Drive folder.
-            </p>
-            <div class="bg-gray-900 border border-gray-600 rounded-lg p-4 text-xs text-gray-300 space-y-1">
-                <p class="font-semibold text-white mb-2">One-time setup (~10 min):</p>
-                <p>1. Go to <a href="https://console.cloud.google.com" target="_blank" class="text-indigo-400 underline">console.cloud.google.com</a> → New Project → name it anything</p>
-                <p>2. <strong>APIs &amp; Services → Library</strong> → search <em>Google Drive API</em> → Enable</p>
-                <p>3. <strong>APIs &amp; Services → OAuth consent screen</strong> → External → fill App name + your email → Save</p>
-                <p>4. <strong>APIs &amp; Services → Credentials → Create Credentials → OAuth Client ID</strong> → Web application → add your site URL to "Authorized JavaScript origins" → Create → copy the Client ID</p>
-                <p>5. In <strong>Google Drive</strong>, create a folder for work order files → open it → copy the ID from the URL: <code class="bg-gray-700 px-1 rounded">drive.google.com/drive/folders/<strong class="text-yellow-300">[FOLDER ID HERE]</strong></code></p>
-            </div>
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">OAuth Client ID</label>
-                    <input type="text" id="cfg-googleClientId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="123456789-abc.apps.googleusercontent.com">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">Google Drive Folder ID</label>
-                    <input type="text" id="cfg-driveFolderId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="1aBcDeFgHiJkLmNoPqRsTuVwXyZ">
-                    <p class="text-xs text-gray-500 mt-1">All photos and PDFs will be uploaded into this folder.</p>
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1">Google API Key <span class="text-gray-500">(optional — only needed if you use Google Picker)</span></label>
-                    <input type="text" id="cfg-googleApiKey" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="AIzaSy...">
-                </div>
-            </div>
-            <button onclick="saveDriveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition">Save Drive Settings</button>
-            <p id="drive-save-status" class="text-sm h-5"></p>
+            <p class="text-xs text-gray-400">Use that page for Google Drive connect, bootstrap/share link, company settings, and Firebase configuration.</p>
         </div>
     </div>
 </div>
@@ -349,11 +238,20 @@
     await initFirebaseAsync();
     await renderNav('admin.html');
     const profile = await requireAuth(['admin']);
+    const bootstrapSearch = window.location.search || '';
 
     // Deep copy for editing
     let editableChecklists = {};
 
+    window.goToSettings = function() {
+        window.location.href = `settings.html${bootstrapSearch}`;
+    };
+
     window.showTab = function(tab) {
+        if (tab === 'settings') {
+            goToSettings();
+            return;
+        }
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.toggle('text-white', btn.dataset.tab === tab);
@@ -364,7 +262,6 @@
         if (tab === 'users') loadUsers();
         if (tab === 'equipment') loadEquipment();
         if (tab === 'checklists') loadChecklistEditor();
-        if (tab === 'settings') loadSettingsTab();
     };
 
     // ── USERS ──────────────────────────────────────────────────
