@@ -19,7 +19,19 @@
 <div class="max-w-3xl mx-auto p-4 md:p-8 space-y-8">
     <div>
         <h1 class="text-2xl font-extrabold text-white">App Settings</h1>
-        <p class="text-gray-400 text-sm mt-1">Configure Firebase, company branding, and Google Drive integration. Settings are stored locally in this browser.</p>
+        <p class="text-gray-400 mt-1 text-sm">Configure Firebase, company branding, and Google Drive integration. Settings are stored locally in this browser.</p>
+    </div>
+
+    <div class="bg-green-950/40 border-2 border-green-700 rounded-xl p-5 space-y-3">
+        <div class="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+                <h2 class="text-lg font-bold text-green-300">Google Drive Account</h2>
+                <p class="text-sm text-gray-300 mt-1">Pick the Google account whose Drive should receive your work order PDFs and uploads.</p>
+            </div>
+            <span class="text-xs px-3 py-1 rounded-full bg-green-900 text-green-300">Quick Setup</span>
+        </div>
+        <button id="btn-connect-drive-top" onclick="if(typeof connectDriveAccount === 'undefined'){alert('Loading... please wait a moment and try again.');}else{connectDriveAccount();}" class="w-full bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg text-sm font-semibold transition">🔗 Connect / Switch Google Account</button>
+        <p class="text-xs text-gray-400">You can use this anytime to switch uploads to a different Google account.</p>
     </div>
 
     <!-- Firebase Configuration -->
@@ -349,24 +361,34 @@
 
     window.connectDriveAccount = async function() {
         const btn = document.getElementById('btn-connect-drive');
+        const topBtn = document.getElementById('btn-connect-drive-top');
         const statusEl = document.getElementById('drive-connect-status');
         const infoEl = document.getElementById('drive-account-info');
-        btn.disabled = true;
-        btn.textContent = '⏳ Connecting...';
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳ Connecting...';
+        }
+        if (topBtn) {
+            topBtn.disabled = true;
+            topBtn.textContent = '⏳ Connecting...';
+        }
         statusEl.textContent = '';
         try {
             const account = await forceReAuth();
             infoEl.textContent = `✓ Connected as ${account.email}`;
             infoEl.className = 'text-sm text-green-400 font-medium';
-            btn.textContent = '🔄 Switch Account';
+            if (btn) btn.textContent = '🔄 Switch Account';
+            if (topBtn) topBtn.textContent = '🔄 Switch Account';
             statusEl.textContent = '✓ Google Drive connected! Uploads will go to this account.';
             statusEl.className = 'text-sm h-5 mt-1 text-green-400';
         } catch(e) {
             statusEl.textContent = 'Connection failed: ' + e.message;
             statusEl.className = 'text-sm h-5 mt-1 text-red-400';
-            btn.textContent = '🔗 Connect Google Account';
+            if (btn) btn.textContent = '🔗 Connect Google Account';
+            if (topBtn) topBtn.textContent = '🔗 Connect / Switch Google Account';
         } finally {
-            btn.disabled = false;
+            if (btn) btn.disabled = false;
+            if (topBtn) topBtn.disabled = false;
         }
     };
 
