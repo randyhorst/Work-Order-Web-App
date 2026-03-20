@@ -198,12 +198,13 @@
             if (locked) el.setAttribute('disabled', 'disabled');
             else el.removeAttribute('disabled');
         });
-        // Lock action buttons but not nav buttons
+        // Lock action buttons but not nav buttons or the Drive connect button
         document.querySelectorAll('button').forEach(el => {
             // Skip nav-related buttons
             if (el.id === 'logout-btn' || el.id === 'theme-toggle-btn' || el.id === 'nav-hamburger') return;
             if (el.closest('#main-nav')) return;
             if (el.closest('#claim-admin-section')) return;
+            if (el.id === 'btn-connect-drive-top') return;
             if (locked) el.setAttribute('disabled', 'disabled');
             else el.removeAttribute('disabled');
         });
@@ -373,6 +374,42 @@
         console.error('[Settings] Nav render failed:', e);
     }
 
+    // Define connectDriveAccount early so the button works immediately (it has its own admin check)
+    window.connectDriveAccount = async function() {
+        const topBtn = document.getElementById('btn-connect-drive-top');
+        const statusEl = document.getElementById('drive-connect-status');
+        const infoEl = document.getElementById('drive-account-info');
+        if (!requireAdminAction('You must be signed in as an admin to connect Google Drive.')) return;
+        // iOS PWA standalone mode blocks OAuth popups — open in Safari instead
+        const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+        if (isStandalone) {
+            const settingsUrl = window.location.href;
+            statusEl.textContent = 'Google sign-in requires Safari. Opening this page in Safari...';
+            statusEl.className = 'text-sm h-5 mt-1 text-yellow-400';
+            window.open(settingsUrl, '_blank');
+            return;
+        }
+        if (topBtn) {
+            topBtn.disabled = true;
+            topBtn.textContent = '⏳ Connecting...';
+        }
+        statusEl.textContent = '';
+        try {
+            const account = await forceReAuth();
+            infoEl.textContent = `✓ Connected as ${account.email}`;
+            infoEl.className = 'text-sm text-green-400 font-medium';
+            if (topBtn) topBtn.textContent = '🔄 Switch Account';
+            statusEl.textContent = '✓ Google Drive connected! Uploads will go to this account.';
+            statusEl.className = 'text-sm h-5 mt-1 text-green-400';
+        } catch(e) {
+            statusEl.textContent = 'Connection failed: ' + e.message;
+            statusEl.className = 'text-sm h-5 mt-1 text-red-400';
+            if (topBtn) topBtn.textContent = '🔗 Connect / Switch Google Account';
+        } finally {
+            if (topBtn) topBtn.disabled = false;
+        }
+    };
+
     // If Firebase isn't configured yet, allow settings access for first-time setup
     if (!firebaseReady) {
         console.log('[Settings] Firebase not configured - allowing first-time setup access');
@@ -424,32 +461,6 @@
             document.getElementById('settings-access-note')?.classList.remove('hidden');
         }
     }
-
-    window.connectDriveAccount = async function() {
-        const topBtn = document.getElementById('btn-connect-drive-top');
-        const statusEl = document.getElementById('drive-connect-status');
-        const infoEl = document.getElementById('drive-account-info');
-        if (!requireAdminAction('You must be signed in as an admin to connect Google Drive.')) return;
-        if (topBtn) {
-            topBtn.disabled = true;
-            topBtn.textContent = '⏳ Connecting...';
-        }
-        statusEl.textContent = '';
-        try {
-            const account = await forceReAuth();
-            infoEl.textContent = `✓ Connected as ${account.email}`;
-            infoEl.className = 'text-sm text-green-400 font-medium';
-            if (topBtn) topBtn.textContent = '🔄 Switch Account';
-            statusEl.textContent = '✓ Google Drive connected! Uploads will go to this account.';
-            statusEl.className = 'text-sm h-5 mt-1 text-green-400';
-        } catch(e) {
-            statusEl.textContent = 'Connection failed: ' + e.message;
-            statusEl.className = 'text-sm h-5 mt-1 text-red-400';
-            if (topBtn) topBtn.textContent = '🔗 Connect / Switch Google Account';
-        } finally {
-            if (topBtn) topBtn.disabled = false;
-        }
-    };
 
     window.claimAdmin = async function() {
         try {
