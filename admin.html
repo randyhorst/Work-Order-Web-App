@@ -242,6 +242,8 @@
 
     // Deep copy for editing
     let editableChecklists = {};
+    const USERS_CACHE_KEY = 'shopAdminUsersCache';
+    let usersLoadPromise = null;
 
     window.goToSettings = function() {
         window.location.href = `settings.html${bootstrapSearch}`;
@@ -266,30 +268,74 @@
 
     // ── USERS ──────────────────────────────────────────────────
 
+    function getCachedUsers() {
+        try {
+            return JSON.parse(sessionStorage.getItem(USERS_CACHE_KEY) || '[]');
+        } catch {
+            return [];
+        }
+    }
+
+    function setCachedUsers(users) {
+        try {
+            sessionStorage.setItem(USERS_CACHE_KEY, JSON.stringify(users || []));
+        } catch {}
+    }
+
+    function renderUsers(container, users) {
+        if (!users.length) {
+            container.innerHTML = '<p class="text-gray-500 text-sm">No users found.</p>';
+            return;
+        }
+        container.innerHTML = users.map(u => `
+            <div class="flex items-center justify-between bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
+                <div>
+                    <p class="text-white font-medium text-sm">${u.name || u.email}</p>
+                    <p class="text-gray-400 text-xs">${u.email}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <select onchange="changeRole('${u.id}', this.value)" class="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+                        <option value="worker" ${u.role==='worker'?'selected':''}>Worker</option>
+                        <option value="viewer" ${u.role==='viewer'?'selected':''}>Viewer</option>
+                        <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+                    </select>
+                </div>
+            </div>`).join('');
+    }
+
     async function loadUsers() {
         const container = document.getElementById('users-list');
+        const cachedUsers = getCachedUsers();
+        if (cachedUsers.length) {
+            renderUsers(container, cachedUsers);
+        } else {
+            container.innerHTML = '<div class="text-gray-500 text-sm">Loading users...</div>';
+        }
+        if (usersLoadPromise) return usersLoadPromise;
+        usersLoadPromise = (async () => {
+            try {
+                const users = await getUsers();
+                setCachedUsers(users);
+                renderUsers(container, users);
+            } catch(e) {
+                if (!cachedUsers.length) {
+                    container.innerHTML = `<p class="text-red-400 text-sm">Error: ${e.message}</p>`;
+                }
+            } finally {
+                usersLoadPromise = null;
+            }
+        })();
         try {
-            const users = await getUsers();
-            if (users.length === 0) { container.innerHTML = '<p class="text-gray-500 text-sm">No users found.</p>'; return; }
-            container.innerHTML = users.map(u => `
-                <div class="flex items-center justify-between bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
-                    <div>
-                        <p class="text-white font-medium text-sm">${u.name || u.email}</p>
-                        <p class="text-gray-400 text-xs">${u.email}</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <select onchange="changeRole('${u.id}', this.value)" class="bg-gray-700 border border-gray-600 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
-                            <option value="worker" ${u.role==='worker'?'selected':''}>Worker</option>
-                            <option value="viewer" ${u.role==='viewer'?'selected':''}>Viewer</option>
-                            <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
-                        </select>
-                    </div>
-                </div>`).join('');
-        } catch(e) { container.innerHTML = `<p class="text-red-400 text-sm">Error: ${e.message}</p>`; }
+            await usersLoadPromise;
+        } catch {}
     }
 
     window.changeRole = async function(userId, role) {
-        try { await updateUser(userId, { role }); } catch(e) { alert('Error: ' + e.message); }
+        try {
+            await updateUser(userId, { role });
+            const cachedUsers = getCachedUsers().map(u => u.id === userId ? { ...u, role } : u);
+            setCachedUsers(cachedUsers);
+        } catch(e) { alert('Error: ' + e.message); }
     };
 
     window.generateInvite = async function() {
