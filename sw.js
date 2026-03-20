@@ -1,19 +1,9 @@
-// Service Worker v4 — caches CDN resources for fast repeat loads
-const CACHE_APP = 'shop-wo-app-v5';
+// Service Worker v5 — caches CDN resources for fast repeat loads
+const CACHE_APP = 'shop-wo-app-v6';
 const CACHE_CDN = 'shop-wo-cdn-v1';
 
+// Only pre-cache static assets, not HTML pages (fetch those fresh each time)
 const SHELL_URLS = [
-    './',
-    './index.html',
-    './login.html',
-    './queue.html',
-    './new-work-order.html',
-    './history.html',
-    './dashboard.html',
-    './admin.html',
-    './settings.html',
-    './register.html',
-    './import-equipment.html',
     './css/styles.css',
     './js/auth.js',
     './js/db.js',
