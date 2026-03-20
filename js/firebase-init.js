@@ -64,6 +64,18 @@ function getStoredConfig() {
 
 let _app = null, _auth = null, _db = null, _storage = null;
 
+// Tiny dedicated cookie for the project ID — survives iOS PWA context switches
+function storeProjectIdCookie(projectId) {
+    if (!projectId) return;
+    try { document.cookie = `shopPID=${encodeURIComponent(projectId)}; path=/; max-age=31536000; SameSite=Lax`; } catch {}
+}
+function getProjectIdCookie() {
+    try {
+        const m = document.cookie.match(/(?:^|; )shopPID=([^;]*)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    } catch { return ''; }
+}
+
 export function initFirebase() {
     const config = getStoredConfig();
     if (!config || !config.apiKey) {
@@ -74,6 +86,8 @@ export function initFirebase() {
     _auth = getAuth(_app);
     _db = getFirestore(_app);
     _storage = getStorage(_app);
+    // Persist projectId in tiny cookie for iOS PWA resilience
+    storeProjectIdCookie(config.projectId);
     return true;
 }
 
@@ -84,20 +98,30 @@ export function initFirebase() {
 export async function initFirebaseAsync() {
     // Fast path: sync init works
     if (initFirebase()) return true;
+    console.log('[Firebase] Sync init failed, trying fallbacks...');
     // Fallback 1: try SW cache (shared between Safari and standalone PWA on iOS)
-    const { getItemFromSWCache } = await import('./storage.js');
-    const raw = await getItemFromSWCache(APP_CONFIG_KEY);
-    if (raw) {
-        // Also restore settings
-        await getItemFromSWCache('shopAppSettings');
-        return initFirebase(); // retry with restored config
-    }
+    try {
+        const { getItemFromSWCache } = await import('./storage.js');
+        const raw = await getItemFromSWCache(APP_CONFIG_KEY);
+        if (raw) {
+            await getItemFromSWCache('shopAppSettings');
+            if (initFirebase()) return true;
+        }
+    } catch(e) { console.log('[Firebase] SW cache fallback failed:', e.message); }
     // Fallback 2: try public Firestore bootstrap using projectId in URL
     const projectId = getBootstrapProjectId();
     if (projectId) {
         const bootstrapped = await bootstrapConfigFromFirestore(projectId);
-        if (bootstrapped) return initFirebase();
+        if (bootstrapped && initFirebase()) return true;
     }
+    // Fallback 3: tiny projectId cookie (most reliable on iOS PWA)
+    const cookiePID = getProjectIdCookie();
+    if (cookiePID) {
+        console.log('[Firebase] Trying bootstrap from projectId cookie:', cookiePID);
+        const bootstrapped = await bootstrapConfigFromFirestore(cookiePID);
+        if (bootstrapped && initFirebase()) return true;
+    }
+    console.log('[Firebase] All init methods failed');
     return false;
 }
 

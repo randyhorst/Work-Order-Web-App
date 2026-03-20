@@ -65,8 +65,16 @@
         const errEl = document.getElementById('login-error');
         errEl.classList.add('hidden');
         if (!email || !password) { errEl.textContent = 'Please enter email and password.'; errEl.classList.remove('hidden'); return; }
+        // If Firebase isn't ready yet, retry initialization before giving up
         if (!firebaseOk) {
-            errEl.textContent = 'App is still loading. Please wait a moment and try again.';
+            try {
+                firebaseOk = await initFirebaseAsync();
+            } catch(e) {
+                console.error('[Login] Retry init failed:', e);
+            }
+        }
+        if (!firebaseOk) {
+            errEl.textContent = 'Unable to connect to the app. Please open the app link from Settings in Safari first, then re-add to Home Screen.';
             errEl.classList.remove('hidden');
             return;
         }

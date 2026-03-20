@@ -909,11 +909,15 @@
         showSettingsStatus('drive-save-status', '✓ Drive settings saved.', 'text-green-400');
     };
 
-    // Hash routing first
-    if (location.hash === '#equipment') showTab('equipment');
-    else if (location.hash === '#checklists') showTab('checklists');
-    else if (location.hash === '#settings') showTab('settings');
-    else showTab('users'); // Default to users tab, which will trigger loadUsers()
+    // Hash routing first, then load initial tab
+    if (location.hash === '#equipment') { showTab('equipment'); }
+    else if (location.hash === '#checklists') { showTab('checklists'); }
+    else if (location.hash === '#settings') { showTab('settings'); }
+    else {
+        showTab('users');
+        // Explicitly await loadUsers to ensure it completes on first page load
+        await loadUsers();
+    }
 </script>
 </body>
 </html>
