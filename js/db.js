@@ -79,7 +79,7 @@ export async function getOpenWorkOrdersForUnit(unitNumber) {
     const companyId = getCompanyId();
     const q = query(
         collection(db, 'companies', companyId, 'workOrders'),
-        where('status', 'in', ['new', 'in_progress', 'waiting_parts', 'waiting_randy']),
+        where('status', 'in', ['new', 'in_progress', 'waiting_parts', 'waiting_randy', 'review']),
         where('unitOrDescription', '==', unitNumber)
     );
     const snap = await getDocs(q);
@@ -91,7 +91,7 @@ export async function getActiveWorkOrders() {
     const companyId = getCompanyId();
     const q = query(
         collection(db, 'companies', companyId, 'workOrders'),
-        where('status', 'in', ['new', 'in_progress', 'waiting_parts', 'waiting_randy']),
+        where('status', 'in', ['new', 'in_progress', 'waiting_parts', 'waiting_randy', 'review']),
         orderBy('createdAt', 'desc')
     );
     const snap = await getDocs(q);
@@ -149,7 +149,7 @@ export function subscribeToActiveQueue(callback, onError) {
     const companyId = getCompanyId();
     const q = query(
         collection(db, 'companies', companyId, 'workOrders'),
-        where('status', 'in', ['new', 'in_progress', 'waiting_parts', 'waiting_randy']),
+        where('status', 'in', ['new', 'in_progress', 'waiting_parts', 'waiting_randy', 'review']),
         orderBy('createdAt', 'desc')
     );
     return onSnapshot(q, snap => {
