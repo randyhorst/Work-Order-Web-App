@@ -9,9 +9,52 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { getItem } from './storage.js';
+import { getItem, setItem } from './storage.js';
 
 const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
+
+async function bootstrapConfigFromFirestore(projectId) {
+    if (!projectId) return false;
+    try {
+        const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/public/appConfig`;
+        const res = await fetch(url);
+        if (!res.ok) return false;
+        const data = await res.json();
+        const f = data.fields || {};
+        const getString = key => f[key]?.stringValue || '';
+        const config = {
+            apiKey: getString('apiKey'),
+            authDomain: getString('authDomain'),
+            projectId: getString('projectId') || projectId,
+            storageBucket: getString('storageBucket'),
+            messagingSenderId: getString('messagingSenderId'),
+            appId: getString('appId')
+        };
+        if (!config.apiKey || !config.projectId) return false;
+        const appSettings = {
+            companyId: getString('companyId'),
+            companyName: getString('companyName'),
+            logoUrl: getString('logoUrl'),
+            driveFolderId: getString('driveFolderId'),
+            googleApiKey: getString('googleApiKey'),
+            googleClientId: getString('googleClientId')
+        };
+        setItem(APP_CONFIG_KEY, JSON.stringify(config));
+        setItem('shopAppSettings', JSON.stringify(appSettings));
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function getBootstrapProjectId() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('p') || params.get('projectId') || '';
+    } catch {
+        return '';
+    }
+}
 
 function getStoredConfig() {
     const raw = getItem(APP_CONFIG_KEY);
@@ -48,6 +91,12 @@ export async function initFirebaseAsync() {
         // Also restore settings
         await getItemFromSWCache('shopAppSettings');
         return initFirebase(); // retry with restored config
+    }
+    // Fallback 2: try public Firestore bootstrap using projectId in URL
+    const projectId = getBootstrapProjectId();
+    if (projectId) {
+        const bootstrapped = await bootstrapConfigFromFirestore(projectId);
+        if (bootstrapped) return initFirebase();
     }
     return false;
 }

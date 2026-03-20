@@ -32,6 +32,11 @@
         </div>
         <button id="btn-connect-drive-top" onclick="if(typeof connectDriveAccount === 'undefined'){alert('Loading... please wait a moment and try again.');}else{connectDriveAccount();}" class="w-full bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg text-sm font-semibold transition">🔗 Connect / Switch Google Account</button>
         <p class="text-xs text-gray-400">You can use this anytime to switch uploads to a different Google account.</p>
+        <div class="bg-gray-900 border border-gray-700 rounded-lg p-3 space-y-2">
+            <p class="text-xs text-gray-400">Fresh browser / iPhone / home-screen app setup link:</p>
+            <input id="bootstrap-link" type="text" readonly class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-xs text-gray-200 font-mono" value="Save Firebase settings to generate this link">
+            <p class="text-xs text-gray-500">Open this exact link on a new device/browser so the app can bootstrap itself automatically.</p>
+        </div>
     </div>
 
     <!-- Firebase Configuration -->
@@ -194,7 +199,7 @@
 </div>
 
 <script type="module">
-    import { initFirebase, getAuthInstance, getDbInstance } from './js/firebase-init.js';
+    import { initFirebase, initFirebaseAsync, getAuthInstance, getDbInstance } from './js/firebase-init.js';
     import { registerUser, getCurrentUserProfile, onAuthChange } from './js/auth.js';
     import { getUsers, updateUser } from './js/db.js';
     import { getItem, setItem } from './js/storage.js';
@@ -202,10 +207,27 @@
 
     const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
     const APP_SETTINGS_KEY = 'shopAppSettings';
+    const bootstrapSearch = window.location.search || '';
+
+    function updateBootstrapLink(projectId) {
+        const el = document.getElementById('bootstrap-link');
+        if (!el) return;
+        const pid = (projectId || '').trim();
+        if (!pid) {
+            el.value = 'Save Firebase settings to generate this link';
+            return;
+        }
+        const url = new URL(window.location.origin + window.location.pathname.replace(/settings\.html$/i, 'index.html'));
+        url.searchParams.set('p', pid);
+        el.value = url.toString();
+    }
+
+    await initFirebaseAsync();
 
     // Load saved values on page load
     const savedCfg = JSON.parse(getItem(APP_CONFIG_KEY) || '{}');
     const savedSettings = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
+    document.querySelector('a[href="login.html"]')?.setAttribute('href', `login.html${bootstrapSearch}`);
 
     if (savedCfg.apiKey) {
         document.getElementById('cfg-apiKey').value = savedCfg.apiKey || '';
@@ -217,6 +239,7 @@
         document.getElementById('firebase-status').textContent = '✓ Configured';
         document.getElementById('firebase-status').className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
     }
+    updateBootstrapLink(savedCfg.projectId || '');
 
     document.getElementById('cfg-companyName').value = savedSettings.companyName || '';
     document.getElementById('cfg-companyId').value = savedSettings.companyId || '';
@@ -240,6 +263,33 @@
         }
     });
 
+    async function publishPublicAppConfig(configOverride = null, settingsOverride = null) {
+        try {
+            const ok = initFirebase();
+            if (!ok) return;
+            const { getDbInstance } = await import('./js/firebase-init.js');
+            const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+            const db = getDbInstance();
+            if (!db) return;
+            const config = configOverride || JSON.parse(getItem(APP_CONFIG_KEY) || '{}');
+            const s = settingsOverride || JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
+            await setDoc(doc(db, 'public', 'appConfig'), {
+                apiKey: config.apiKey || '',
+                authDomain: config.authDomain || '',
+                projectId: config.projectId || '',
+                storageBucket: config.storageBucket || '',
+                messagingSenderId: config.messagingSenderId || '',
+                appId: config.appId || '',
+                companyId: s.companyId || '',
+                companyName: s.companyName || '',
+                logoUrl: s.logoUrl || '',
+                driveFolderId: s.driveFolderId || '',
+                googleApiKey: s.googleApiKey || '',
+                googleClientId: s.googleClientId || ''
+            }, { merge: true });
+        } catch(e) { console.warn('Could not publish config to Firestore:', e.message); }
+    }
+
     window.saveFirebaseConfig = function() {
         const config = {
             apiKey: document.getElementById('cfg-apiKey').value.trim(),
@@ -256,23 +306,8 @@
         document.getElementById('firebase-status').textContent = '✓ Configured';
         document.getElementById('firebase-status').className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
         showStatus('firebase-save-status', '✓ Firebase config saved. Reload the page to activate.', 'text-green-400');
-        // Publish config to Firestore so invite links can bootstrap new devices via REST
-        (async () => {
-            try {
-                const ok = initFirebase();
-                if (!ok) return;
-                const { getDbInstance } = await import('./js/firebase-init.js');
-                const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-                const db = getDbInstance();
-                if (!db) return;
-                const s = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
-                await setDoc(doc(db, 'public', 'appConfig'), {
-                    ...config,
-                    companyId: s.companyId || '',
-                    companyName: s.companyName || ''
-                }, { merge: true });
-            } catch(e) { console.warn('Could not publish config to Firestore:', e.message); }
-        })();
+        updateBootstrapLink(config.projectId);
+        publishPublicAppConfig(config);
     };
 
     window.saveCompanySettings = function() {
@@ -285,6 +320,7 @@
         };
         setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
         showStatus('company-save-status', '✓ Company settings saved.', 'text-green-400');
+        publishPublicAppConfig(null, updated);
     };
 
     window.saveDriveSettings = function() {
@@ -304,6 +340,7 @@
             badge.className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
         }
         showStatus('drive-save-status', '✓ Drive settings saved.', 'text-green-400');
+        publishPublicAppConfig(null, updated);
     };
 
     window.createAdminAccount = async function() {

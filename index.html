@@ -18,21 +18,24 @@
     <div class="text-6xl mb-4">🔧</div>
     <h1 class="text-3xl font-extrabold text-white mb-2" id="company-title">Shop Work Orders</h1>
     <p class="text-gray-400 mb-8">Redirecting...</p>
-    <a href="login.html" class="text-indigo-400 underline text-sm">Click here if not redirected</a>
+    <a href="login.html" id="index-login-link" class="text-indigo-400 underline text-sm">Click here if not redirected</a>
 </div>
 <script type="module">
     import { initFirebaseAsync } from './js/firebase-init.js';
     import { onAuthChange } from './js/auth.js';
     import { getItem } from './js/storage.js';
 
+    const bootstrapSearch = window.location.search || '';
+    document.getElementById('index-login-link').href = `login.html${bootstrapSearch}`;
+
     const settings = JSON.parse(getItem('shopAppSettings') || '{}');
     if (settings.companyName) document.getElementById('company-title').textContent = settings.companyName;
 
     const ok = await initFirebaseAsync();
-    if (!ok) { window.location.href = 'settings.html'; }
+    if (!ok) { window.location.href = `settings.html${bootstrapSearch}`; }
     else {
         onAuthChange(user => {
-            window.location.href = user ? 'queue.html' : 'login.html';
+            window.location.href = user ? 'queue.html' : `login.html${bootstrapSearch}`;
         });
     }
 </script>

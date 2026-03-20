@@ -97,14 +97,17 @@ function pushToSWCache(key, value) {
  */
 export async function getItemFromSWCache(key) {
     try {
-        const cache = await caches.open('shop-wo-app-v3');
-        const resp = await cache.match('/app-config-store');
-        if (!resp) return null;
-        const configMap = await resp.json();
-        if (configMap?.[key]) {
-            // Sync back to localStorage + cookie for future reads
-            setItem(key, configMap[key]);
-            return configMap[key];
+        const cacheNames = ['shop-wo-app-v5', 'shop-wo-app-v4', 'shop-wo-app-v3'];
+        for (const cacheName of cacheNames) {
+            const cache = await caches.open(cacheName);
+            const resp = await cache.match('/app-config-store');
+            if (!resp) continue;
+            const configMap = await resp.json();
+            if (configMap?.[key]) {
+                // Sync back to localStorage + cookie for future reads
+                setItem(key, configMap[key]);
+                return configMap[key];
+            }
         }
     } catch {}
     return null;
