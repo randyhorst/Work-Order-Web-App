@@ -186,7 +186,7 @@
     import { registerUser, getCurrentUserProfile, onAuthChange } from './js/auth.js';
     import { getUsers, updateUser } from './js/db.js';
     import { getItem, setItem } from './js/storage.js';
-    import { forceReAuth } from './js/drive-storage.js';
+    import { forceReAuth } from './js/drive-storage.js?v=' + Date.now();
 
     const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
     const APP_SETTINGS_KEY = 'shopAppSettings';
