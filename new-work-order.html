@@ -936,37 +936,39 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        const wasPreviewHidden = document.getElementById('print-preview').classList.contains('hidden');
         generatePrintView();
         const html = buildPrintHTML();
-        const parsed = new DOMParser().parseFromString(html, 'text/html');
-        const temp = document.createElement('div');
-        temp.style.position = 'fixed';
-        temp.style.left = '-99999px';
-        temp.style.top = '0';
-        temp.style.width = '816px';
-        temp.style.background = '#ffffff';
-        temp.style.color = '#000000';
-        const styleEl = parsed.querySelector('style');
-        if (styleEl) temp.appendChild(styleEl.cloneNode(true));
-        const bodyWrapper = document.createElement('div');
-        bodyWrapper.innerHTML = parsed.body.innerHTML;
-        temp.appendChild(bodyWrapper);
-        document.body.appendChild(temp);
+
+        // Render in a hidden iframe so all styles apply correctly
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:816px;height:1056px;border:none;visibility:hidden;';
+        document.body.appendChild(iframe);
+
         try {
-            await new Promise(resolve => setTimeout(resolve, 250));
-            const worker = window.html2pdf().set({
-                margin: 0.5,
-                filename: 'worksheet.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-            }).from(temp);
-            const blob = await worker.output('blob');
+            await new Promise((resolve, reject) => {
+                iframe.onload = resolve;
+                iframe.onerror = reject;
+                iframe.srcdoc = html;
+            });
+
+            // Extra wait for fonts/images to render inside the iframe
+            await new Promise(r => setTimeout(r, 600));
+
+            const iframeBody = iframe.contentDocument.body;
+            const blob = await window.html2pdf()
+                .set({
+                    margin: 0.5,
+                    filename: 'worksheet.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 816 },
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                })
+                .from(iframeBody)
+                .output('blob');
             return blob;
         } finally {
-            temp.remove();
-            if (wasPreviewHidden) showFormView();
+            iframe.remove();
+            showFormView();
         }
     }
 
