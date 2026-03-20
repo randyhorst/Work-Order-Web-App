@@ -1,5 +1,5 @@
-// Service Worker v3 — caches CDN resources for fast repeat loads
-const CACHE_APP = 'shop-wo-app-v4';
+// Service Worker v4 — caches CDN resources for fast repeat loads
+const CACHE_APP = 'shop-wo-app-v5';
 const CACHE_CDN = 'shop-wo-cdn-v1';
 
 const SHELL_URLS = [
