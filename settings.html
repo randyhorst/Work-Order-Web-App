@@ -354,31 +354,51 @@
     }
 
     // Try to init Firebase in case it's already configured
-    try { initFirebase(); } catch(e) {}
+    let firebaseReady = false;
+    try { 
+        firebaseReady = initFirebase(); 
+    } catch(e) { 
+        console.log('[Settings] Firebase init failed:', e.message);
+    }
 
     // Try to render nav if logged in
     try {
         const { renderNav } = await import('./js/nav.js');
         renderNav('settings.html');
-    } catch(e) {}
+    } catch(e) {
+        console.log('[Settings] Nav render failed:', e.message);
+    }
 
-    setSettingsLocked(true);
+    // If Firebase isn't configured yet, allow settings access for first-time setup
+    if (!firebaseReady) {
+        console.log('[Settings] Firebase not configured - allowing first-time setup access');
+        setSettingsLocked(false);
+        document.getElementById('settings-access-note')?.classList.add('hidden');
+    } else {
+        setSettingsLocked(true);
 
-    // Check if logged-in user needs to claim admin (no admin exists in company yet)
-    try {
-        currentProfile = await getCurrentUserProfile();
-        if (currentProfile?.role === 'admin') {
-            setSettingsLocked(false);
-            document.getElementById('settings-access-note')?.classList.add('hidden');
-        }
-        if (currentProfile && currentProfile.role !== 'admin') {
-            const users = await getUsers();
-            const hasAdmin = users.some(u => u.role === 'admin');
-            if (!hasAdmin) {
-                document.getElementById('claim-admin-section').classList.remove('hidden');
+        // Check if logged-in user is admin
+        try {
+            currentProfile = await getCurrentUserProfile();
+            console.log('[Settings] Current profile:', currentProfile);
+            if (currentProfile?.role === 'admin') {
+                console.log('[Settings] Admin detected - unlocking settings');
+                setSettingsLocked(false);
+                document.getElementById('settings-access-note')?.classList.add('hidden');
+            } else {
+                console.log('[Settings] Not admin or not logged in - settings locked');
             }
+            if (currentProfile && currentProfile.role !== 'admin') {
+                const users = await getUsers();
+                const hasAdmin = users.some(u => u.role === 'admin');
+                if (!hasAdmin) {
+                    document.getElementById('claim-admin-section').classList.remove('hidden');
+                }
+            }
+        } catch(e) {
+            console.error('[Settings] Profile check failed:', e);
         }
-    } catch(e) {}
+    }
 
     window.connectDriveAccount = async function() {
         const topBtn = document.getElementById('btn-connect-drive-top');
