@@ -134,7 +134,7 @@
                 <h3 class="text-base font-bold text-green-300">Google Account for Drive Uploads</h3>
                 <p class="text-sm text-gray-300 mt-1">Choose the exact Google account whose Drive should receive work order PDFs and documents.</p>
             </div>
-            <button id="btn-connect-drive" onclick="connectDriveAccount()" class="w-full bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg text-sm font-semibold transition">🔗 Connect / Switch Google Account</button>
+            <button id="btn-connect-drive" onclick="if(typeof connectDriveAccount === 'undefined'){alert('Loading… please wait a moment and try again.');}else{connectDriveAccount();}" class="w-full bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg text-sm font-semibold transition">🔗 Connect / Switch Google Account</button>
             <span id="drive-account-info" class="block text-sm text-gray-300"></span>
             <p class="text-xs text-gray-400">Use this anytime to switch uploads to a different Gmail/Google Drive account.</p>
             <p id="drive-connect-status" class="text-sm h-5"></p>
