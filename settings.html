@@ -193,17 +193,20 @@
     }
 
     function setSettingsLocked(locked) {
-        document.querySelectorAll('input, textarea, select, button').forEach(el => {
-            if (el.id === 'btn-connect-drive-top') return;
+        // Only lock form inputs, not navigation elements
+        document.querySelectorAll('input, textarea, select').forEach(el => {
+            if (locked) el.setAttribute('disabled', 'disabled');
+            else el.removeAttribute('disabled');
+        });
+        // Lock action buttons but not nav buttons
+        document.querySelectorAll('button').forEach(el => {
+            // Skip nav-related buttons
+            if (el.id === 'logout-btn' || el.id === 'theme-toggle-btn' || el.id === 'nav-hamburger') return;
+            if (el.closest('#main-nav')) return;
             if (el.closest('#claim-admin-section')) return;
             if (locked) el.setAttribute('disabled', 'disabled');
             else el.removeAttribute('disabled');
         });
-        const topBtn = document.getElementById('btn-connect-drive-top');
-        if (topBtn) {
-            if (locked) topBtn.setAttribute('disabled', 'disabled');
-            else topBtn.removeAttribute('disabled');
-        }
     }
 
     function updateBootstrapLink(projectId) {
