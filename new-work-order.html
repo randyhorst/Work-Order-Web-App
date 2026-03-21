@@ -958,36 +958,39 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        // Populate print-preview so buildPrintHTML() can read the data
+        // generatePrintView() populates and shows the print-preview div
         generatePrintView();
-        const html = buildPrintHTML();
+        const pp = document.getElementById('print-preview');
 
-        // Use DOMParser to properly parse the full HTML document
-        // (setting innerHTML on a div strips <html>/<head>/<body> tags,
-        //  which breaks CSS rules targeting 'body')
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
+        // Hide buttons inside print-preview
+        const noPrintEls = pp.querySelectorAll('.no-print');
+        noPrintEls.forEach(el => el.style.display = 'none');
 
-        // Create a container that matches US Letter paper (8.5in wide)
-        // and apply the body styles directly as inline styles
-        const container = document.createElement('div');
-        container.style.cssText =
-            'position:fixed;left:0;top:0;z-index:-9999;' +
-            'width:8.5in;box-sizing:border-box;' +
-            "font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;" +
-            'background-color:white;color:black;' +
-            'padding:0.5in;margin:0;font-size:12px;line-height:1.4;';
-        document.body.appendChild(container);
+        // Save original styles so we can restore them after capture
+        const origPP = pp.style.cssText;
+        const appEl = document.getElementById('app');
+        const origApp = appEl ? appEl.style.cssText : '';
 
-        // Copy <style> tags so class-based rules (.inspection-table, .label, etc.) still work
-        doc.querySelectorAll('style').forEach(s => {
-            container.appendChild(document.importNode(s, true));
-        });
+        // Temporarily style the print-preview to match letter paper exactly:
+        // - Remove parent max-width so it can fill 8.5in
+        // - Position at top-left so html2canvas captures from (0,0)
+        // - Set exact letter width with 0.5in padding
+        if (appEl) {
+            appEl.style.maxWidth = 'none';
+            appEl.style.padding = '0';
+            appEl.style.margin = '0';
+        }
+        pp.style.width = '8.5in';
+        pp.style.maxWidth = '8.5in';
+        pp.style.padding = '0.5in';
+        pp.style.margin = '0';
+        pp.style.boxSizing = 'border-box';
+        pp.style.position = 'absolute';
+        pp.style.left = '0';
+        pp.style.top = '0';
+        pp.style.backgroundColor = '#ffffff';
 
-        // Copy the body content
-        container.insertAdjacentHTML('beforeend', doc.body.innerHTML);
-
-        // Let the browser paint the content
+        window.scrollTo(0, 0);
         await new Promise(r => setTimeout(r, 500));
 
         try {
@@ -1001,7 +1004,7 @@ ${inspHTML}${photoHTML}
                         useCORS: true,
                         backgroundColor: '#ffffff',
                         scrollY: 0,
-                        windowWidth: 816   // 8.5in at 96 DPI
+                        windowWidth: 816
                     },
                     jsPDF: {
                         unit: 'in',
@@ -1009,12 +1012,15 @@ ${inspHTML}${photoHTML}
                         orientation: 'portrait'
                     }
                 })
-                .from(container)
+                .from(pp)
                 .output('blob');
 
             return blob;
         } finally {
-            document.body.removeChild(container);
+            // Restore original styles
+            pp.style.cssText = origPP;
+            if (appEl) appEl.style.cssText = origApp;
+            noPrintEls.forEach(el => el.style.display = '');
             showFormView();
         }
     }
