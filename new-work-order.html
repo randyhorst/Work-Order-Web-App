@@ -940,49 +940,54 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        // Use the original buildPrintHTML() approach for perfect formatting
-        generatePrintView(); // This populates all the report-* elements
-        const html = buildPrintHTML();
+        // Use the original print-preview div but with better html2pdf settings
+        generatePrintView();
+        const pp = document.getElementById('print-preview');
         
-        // Create a temporary iframe with the complete HTML document
-        return new Promise((resolve, reject) => {
-            const iframe = document.createElement('iframe');
-            iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:8.5in;height:11in;border:none;';
-            document.body.appendChild(iframe);
+        // Hide non-data elements
+        const noPrintEls = pp.querySelectorAll('.no-print');
+        noPrintEls.forEach(el => el.style.display = 'none');
+        
+        // Reset the print-preview styles to match buildPrintHTML
+        pp.style.cssText = 'background:white;color:black;padding:0.5in;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;width:100%;';
+        
+        // Scroll to top and wait for render
+        window.scrollTo(0, 0);
+        await new Promise(r => setTimeout(r, 500));
+        
+        try {
+            const blob = await window.html2pdf()
+                .set({
+                    margin: 0,
+                    filename: 'worksheet.pdf',
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { 
+                        scale: 1.5, 
+                        useCORS: true, 
+                        backgroundColor: '#ffffff', 
+                        logging: false,
+                        letterRendering: true,
+                        allowTaint: true
+                    },
+                    jsPDF: { 
+                        unit: 'in', 
+                        format: 'letter', 
+                        orientation: 'portrait', 
+                        compress: false
+                    }
+                })
+                .from(pp)
+                .output('blob');
             
-            iframe.onload = async function() {
-                try {
-                    // Wait a moment for the content to render
-                    await new Promise(r => setTimeout(r, 300));
-                    
-                    // Now use html2pdf on the iframe's body content
-                    const blob = await window.html2pdf()
-                        .set({
-                            margin: 0,
-                            filename: 'worksheet.pdf',
-                            image: { type: 'jpeg', quality: 0.95 },
-                            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, window: iframe.contentWindow },
-                            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait', compress: true }
-                        })
-                        .from(iframe.contentDocument.body)
-                        .output('blob');
-                    
-                    console.log('[PDF] blob size:', blob.size, 'bytes');
-                    if (blob.size < 5000) console.warn('[PDF] WARNING: blob is very small, may be blank');
-                    
-                    document.body.removeChild(iframe);
-                    showFormView();
-                    resolve(blob);
-                } catch (e) {
-                    console.error('[PDF] Generation error:', e);
-                    document.body.removeChild(iframe);
-                    showFormView();
-                    reject(e);
-                }
-            };
-            
-            iframe.srcdoc = html;
-        });
+            console.log('[PDF] blob size:', blob.size, 'bytes');
+            return blob;
+        } finally {
+            // Restore hidden elements and styles
+            noPrintEls.forEach(el => el.style.display = '');
+            pp.style.cssText = '';
+            showFormView();
+        }
     }
 
     async function generateAndUploadCompletionPdf(workOrderNumber) {
