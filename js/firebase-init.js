@@ -18,6 +18,20 @@ function hasOwn(obj, key) {
     return !!obj && Object.prototype.hasOwnProperty.call(obj, key);
 }
 
+ function hasUsableValue(value) {
+     return value !== undefined && value !== null && !(typeof value === 'string' && value.trim() === '');
+ }
+
+ function mergeStoredFields(existing, incoming) {
+     const merged = { ...(existing || {}) };
+     Object.entries(incoming || {}).forEach(([key, value]) => {
+         if (!hasOwn(merged, key) || hasUsableValue(value)) {
+             merged[key] = value;
+         }
+     });
+     return merged;
+ }
+
 function pickStringFields(fields, keys) {
     const picked = {};
     keys.forEach(key => {
@@ -28,9 +42,9 @@ function pickStringFields(fields, keys) {
 
 function hasBootstrappedSettings(settings) {
     if (!settings) return false;
-    const hasCompanySettings = !!(settings.companyId && settings.companyName);
-    const hasDriveKeys = hasOwn(settings, 'googleClientId') && hasOwn(settings, 'driveFolderId') && hasOwn(settings, 'googleApiKey');
-    return hasCompanySettings && hasDriveKeys;
+    const hasCompanySettings = hasUsableValue(settings.companyId) && hasUsableValue(settings.companyName);
+    const hasDriveConfig = hasUsableValue(settings.googleClientId);
+    return hasCompanySettings && hasDriveConfig;
 }
 
 async function bootstrapConfigFromFirestore(projectId) {
@@ -44,15 +58,11 @@ async function bootstrapConfigFromFirestore(projectId) {
         const existingConfig = getStoredConfig() || {};
         const existingSettings = getStoredSettings() || {};
         const config = {
-            ...existingConfig,
-            ...pickStringFields(f, ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId']),
+            ...mergeStoredFields(existingConfig, pickStringFields(f, ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'])),
             projectId: (hasOwn(f, 'projectId') ? (f.projectId?.stringValue || '') : '') || existingConfig.projectId || projectId
         };
         if (!config.apiKey || !config.projectId) return false;
-        const appSettings = {
-            ...existingSettings,
-            ...pickStringFields(f, ['companyId', 'companyName', 'logoUrl', 'driveFolderId', 'googleApiKey', 'googleClientId'])
-        };
+        const appSettings = mergeStoredFields(existingSettings, pickStringFields(f, ['companyId', 'companyName', 'logoUrl', 'driveFolderId', 'googleApiKey', 'googleClientId']));
         setItem(APP_CONFIG_KEY, JSON.stringify(config));
         setItem(APP_SETTINGS_KEY, JSON.stringify(appSettings));
         return true;

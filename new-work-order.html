@@ -16,6 +16,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.12/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.12/vfs_fonts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -270,7 +272,7 @@
     import { createWorkOrder, updateWorkOrder, deleteWorkOrder, getWorkOrder, matchEquipment, getCustomChecklists, getOpenWorkOrdersForUnit } from './js/db.js';
     import { checklists as defaultChecklists, renderChecklist, extractChecklistData, buildChecklistTableHTML } from './js/checklists.js';
     import { renderNav } from './js/nav.js';
-    import { uploadFileToDrive, uploadPdfToUnitFolder, deleteFileFromDrive, isDriveConfigured, isDriveConfiguredAsync } from './js/drive-storage.js';
+    import { uploadFileToDrive, uploadPdfToUnitFolder, deleteFileFromDrive, isDriveConfigured, isDriveConfiguredAsync, downloadFileBlobFromDrive } from './js/drive-storage.js';
     import { getItem } from './js/storage.js';
 
     await initFirebaseAsync();
@@ -319,6 +321,15 @@
     let savedDocs = [];   // { id, name, file, dataUrl } — pending local documents
     let currentWOId = null;
     let matchedEquipmentId = null;
+    const pdfDocByteCache = new Map();
+    const pdfPreviewImageCache = new Map();
+    let docPreviewRenderToken = 0;
+    const pdfjsLib = window.pdfjsLib || null;
+    const PDFLibRef = window.PDFLib || null;
+
+    if (pdfjsLib?.GlobalWorkerOptions) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
 
     // Unique attachment IDs
     function makeId() { return '_' + Math.random().toString(36).substr(2, 9); }
@@ -486,11 +497,219 @@
         }).filter(doc => doc.name || doc.viewLink);
     }
 
+    function getDocCacheKey(doc) {
+        return doc?.id || doc?.driveMeta?.id || `${doc?.name || 'document'}:${doc?.size || 0}:${doc?.contentType || ''}`;
+    }
+
+    function clearDocCaches(doc) {
+        const cacheKey = getDocCacheKey(buildDocState(doc));
+        pdfDocByteCache.delete(cacheKey);
+        pdfPreviewImageCache.delete(cacheKey);
+        docPreviewRenderToken += 1;
+    }
+
+    function isPdfAttachment(doc) {
+        const contentType = (doc?.contentType || '').toLowerCase();
+        const name = doc?.name || '';
+        const source = doc?.dataUrl || doc?.src || doc?.driveMeta?.webContentLink || '';
+        return contentType === 'application/pdf'
+            || /\.pdf$/i.test(name)
+            || /^data:application\/pdf/i.test(source);
+    }
+
+    function dataUrlToUint8Array(dataUrl) {
+        const match = String(dataUrl || '').match(/^data:([^;,]+)?(?:;charset=[^;,]+)?(?:;(base64))?,(.*)$/i);
+        if (!match) throw new Error('Invalid document data.');
+        const decoded = match[2] ? atob(match[3] || '') : decodeURIComponent(match[3] || '');
+        const bytes = new Uint8Array(decoded.length);
+        for (let index = 0; index < decoded.length; index += 1) {
+            bytes[index] = decoded.charCodeAt(index);
+        }
+        return bytes;
+    }
+
+    async function blobToUint8Array(blob) {
+        return new Uint8Array(await blob.arrayBuffer());
+    }
+
+    async function fetchDocumentBlob(url) {
+        if (!url) throw new Error('Document URL is missing.');
+        const response = await fetch(url, { credentials: 'omit' });
+        if (!response.ok) throw new Error(`Document fetch failed (${response.status})`);
+        return await response.blob();
+    }
+
+    async function getDocumentBytes(doc) {
+        const normalized = buildDocState(doc);
+        const cacheKey = getDocCacheKey(normalized);
+        const cached = pdfDocByteCache.get(cacheKey);
+        if (cached) {
+            return new Uint8Array(cached);
+        }
+
+        const inlineSource = typeof normalized.dataUrl === 'string' && /^data:/i.test(normalized.dataUrl)
+            ? normalized.dataUrl
+            : '';
+        let bytes;
+        if (inlineSource) {
+            bytes = dataUrlToUint8Array(inlineSource);
+        } else {
+            const remoteSource = normalized.driveMeta?.webContentLink || (/^https?:\/\//i.test(normalized.dataUrl || '') ? normalized.dataUrl : '');
+            if (normalized.driveMeta?.id) {
+                try {
+                    bytes = await blobToUint8Array(await downloadFileBlobFromDrive(normalized.driveMeta.id));
+                } catch (error) {
+                    if (!remoteSource) throw error;
+                }
+            }
+            if (!bytes) {
+                if (!remoteSource) throw new Error('Document data is unavailable.');
+                bytes = await blobToUint8Array(await fetchDocumentBlob(remoteSource));
+            }
+        }
+
+        pdfDocByteCache.set(cacheKey, bytes);
+        return new Uint8Array(bytes);
+    }
+
+    async function getPdfPreviewPageImages(doc) {
+        const normalized = buildDocState(doc);
+        const cacheKey = getDocCacheKey(normalized);
+        const cached = pdfPreviewImageCache.get(cacheKey);
+        if (cached) {
+            return [...cached];
+        }
+        if (!pdfjsLib?.getDocument) {
+            throw new Error('PDF preview engine failed to load.');
+        }
+
+        const bytes = await getDocumentBytes(normalized);
+        const loadingTask = pdfjsLib.getDocument({ data: bytes });
+        const pdf = await loadingTask.promise;
+        const pageImages = [];
+
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+            const page = await pdf.getPage(pageNumber);
+            const baseViewport = page.getViewport({ scale: 1 });
+            const scale = Math.max(1.15, 816 / Math.max(baseViewport.width || 1, 1));
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.ceil(viewport.width));
+            canvas.height = Math.max(1, Math.ceil(viewport.height));
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Canvas context unavailable.');
+            await page.render({ canvasContext: context, viewport }).promise;
+            pageImages.push(canvas.toDataURL('image/png'));
+            page.cleanup?.();
+        }
+
+        pdfPreviewImageCache.set(cacheKey, pageImages);
+        return [...pageImages];
+    }
+
+    function buildReportDocSummaryRow(doc, noteText = '') {
+        const viewLink = getDocViewLink(doc);
+        const metaText = [getDocTypeLabel(doc), getDocSizeText(doc), noteText].filter(Boolean).join(' • ');
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border:1px solid #d1d5db;border-radius:6px;padding:10px 12px;';
+        const left = document.createElement('div');
+        left.style.cssText = 'display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;';
+        const title = viewLink ? document.createElement('a') : document.createElement('span');
+        if (viewLink) {
+            title.href = viewLink;
+            title.target = '_blank';
+            title.style.cssText = 'color:#1d4ed8;text-decoration:underline;font-size:12px;font-weight:600;';
+        } else {
+            title.style.cssText = 'color:#111827;font-size:12px;font-weight:600;';
+        }
+        title.textContent = doc.name || 'Attachment';
+        left.appendChild(title);
+        if (metaText) {
+            const meta = document.createElement('span');
+            meta.style.cssText = 'color:#6b7280;font-size:11px;';
+            meta.textContent = metaText;
+            left.appendChild(meta);
+        }
+        row.appendChild(left);
+        if (viewLink) {
+            const link = document.createElement('a');
+            link.href = viewLink;
+            link.target = '_blank';
+            link.textContent = 'Open';
+            link.style.cssText = 'white-space:nowrap;color:#1d4ed8;text-decoration:underline;font-size:12px;font-weight:600;';
+            row.appendChild(link);
+        }
+        return row;
+    }
+
+    function buildReportPdfPreview(doc, pageImages) {
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:flex;flex-direction:column;gap:12px;margin-bottom:16px;';
+        wrapper.appendChild(buildReportDocSummaryRow(doc, `${pageImages.length} page${pageImages.length === 1 ? '' : 's'} embedded below`));
+        const pages = document.createElement('div');
+        pages.style.cssText = 'display:flex;flex-direction:column;gap:12px;';
+        pageImages.forEach((src, index) => {
+            const pageWrap = document.createElement('div');
+            pageWrap.className = 'report-doc-page';
+            pageWrap.style.cssText = 'border:1px solid #d1d5db;border-radius:8px;padding:10px;background:#ffffff;page-break-inside:avoid;';
+            const img = document.createElement('img');
+            img.src = src;
+            img.alt = `${doc.name || 'Attachment'} page ${index + 1}`;
+            img.style.cssText = 'display:block;width:100%;height:auto;';
+            pageWrap.appendChild(img);
+            pages.appendChild(pageWrap);
+        });
+        wrapper.appendChild(pages);
+        return wrapper;
+    }
+
+    async function renderSavedDocumentPreview() {
+        const docSection = document.getElementById('report-doc-section');
+        const docCont = document.getElementById('report-doc-container');
+        const docs = savedDocs.map(buildDocState);
+        const renderToken = ++docPreviewRenderToken;
+        docCont.innerHTML = '';
+
+        if (!docs.length) {
+            docSection.classList.add('hidden');
+            return;
+        }
+
+        docSection.classList.remove('hidden');
+
+        for (const doc of docs) {
+            if (renderToken !== docPreviewRenderToken) return;
+            if (isPdfAttachment(doc)) {
+                try {
+                    const pageImages = await getPdfPreviewPageImages(doc);
+                    if (renderToken !== docPreviewRenderToken) return;
+                    if (pageImages.length) {
+                        docCont.appendChild(buildReportPdfPreview(doc, pageImages));
+                        continue;
+                    }
+                } catch (error) {
+                    console.warn('[Preview] Could not render attached PDF:', doc.name, error.message);
+                }
+                docCont.appendChild(buildReportDocSummaryRow(doc, 'Preview unavailable'));
+                continue;
+            }
+
+            docCont.appendChild(buildReportDocSummaryRow(doc));
+        }
+
+        if (!docCont.childElementCount) {
+            docSection.classList.add('hidden');
+        }
+    }
+
     function restoreSavedAttachments(attachments = []) {
         savedPhotos = [];
         savedDocs = [];
         document.getElementById('photo-preview-container').innerHTML = '';
         document.getElementById('doc-list').innerHTML = '';
+        pdfDocByteCache.clear();
+        pdfPreviewImageCache.clear();
+        docPreviewRenderToken += 1;
 
         attachments.forEach(att => {
             if (att.type === 'photo') {
@@ -825,6 +1044,7 @@
     window.removeDoc = function(id) {
         const doc = savedDocs.find(d => d.id === id);
         if (doc?.driveMeta?.id) deleteFileFromDrive(doc.driveMeta.id).catch(() => {});
+        if (doc) clearDocCaches(doc);
         savedDocs = savedDocs.filter(d => d.id !== id);
         document.querySelector(`[data-doc-id="${id}"]`)?.remove();
         triggerAutoSave();
@@ -975,7 +1195,7 @@
         } catch(e) { setStatus('Error: ' + e.message, 'text-red-400'); }
     }
 
-    function generatePrintView() {
+    async function generatePrintView() {
         const getVal = id => document.getElementById(id)?.value?.trim() || '';
         const unit = getVal('unit-number');
         if (!unit) { alert('Please enter a Unit # or description.'); return; }
@@ -1017,45 +1237,7 @@
             photoSources.forEach(src => { const i = document.createElement('img'); i.src = src; photoCont.appendChild(i); });
         } else { photoSection.classList.add('hidden'); }
 
-        const docEntries = getSavedDocumentEntries();
-        const docSection = document.getElementById('report-doc-section');
-        const docCont = document.getElementById('report-doc-container');
-        docCont.innerHTML = '';
-        if (docEntries.length > 0) {
-            docSection.classList.remove('hidden');
-            docEntries.forEach(doc => {
-                const row = document.createElement('div');
-                row.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border:1px solid #d1d5db;border-radius:6px;padding:10px 12px;margin-bottom:8px;';
-                const left = document.createElement('div');
-                left.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
-                const title = doc.viewLink ? document.createElement('a') : document.createElement('span');
-                if (doc.viewLink) {
-                    title.href = doc.viewLink;
-                    title.target = '_blank';
-                    title.style.cssText = 'color:#1d4ed8;text-decoration:underline;font-size:12px;font-weight:600;';
-                } else {
-                    title.style.cssText = 'color:#111827;font-size:12px;font-weight:600;';
-                }
-                title.textContent = doc.name;
-                const meta = document.createElement('span');
-                meta.style.cssText = 'color:#6b7280;font-size:11px;';
-                meta.textContent = [doc.typeLabel, doc.sizeText].filter(Boolean).join(' • ');
-                left.appendChild(title);
-                if (meta.textContent) left.appendChild(meta);
-                row.appendChild(left);
-                if (doc.viewLink) {
-                    const link = document.createElement('a');
-                    link.href = doc.viewLink;
-                    link.target = '_blank';
-                    link.textContent = 'Open';
-                    link.style.cssText = 'white-space:nowrap;color:#1d4ed8;text-decoration:underline;font-size:12px;font-weight:600;';
-                    row.appendChild(link);
-                }
-                docCont.appendChild(row);
-            });
-        } else {
-            docSection.classList.add('hidden');
-        }
+        await renderSavedDocumentPreview();
 
         document.getElementById('form-view').classList.add('hidden');
         document.getElementById('print-preview').classList.remove('hidden');
@@ -1092,6 +1274,9 @@
         document.getElementById('inspection-ui').classList.add('hidden');
         document.getElementById('checklist-container').innerHTML = '';
         savedPhotos = []; savedDocs = [];
+        pdfDocByteCache.clear();
+        pdfPreviewImageCache.clear();
+        docPreviewRenderToken += 1;
         document.getElementById('photo-upload').value = '';
         document.getElementById('doc-upload').value = '';
         document.getElementById('photo-preview-container').innerHTML = '';
@@ -1112,7 +1297,9 @@
 
     // ── Button bindings (addEventListener works reliably on all devices including mobile) ──
     document.getElementById('btn-save').addEventListener('click', saveDraft);
-    document.getElementById('btn-preview').addEventListener('click', generatePrintView);
+    document.getElementById('btn-preview').addEventListener('click', () => {
+        generatePrintView().catch(error => alert('Preview failed: ' + error.message));
+    });
     document.getElementById('btn-complete').addEventListener('click', completeAndSave);
     document.getElementById('btn-clear').addEventListener('click', clearForm);
     document.getElementById('btn-delete').addEventListener('click', deleteThisWO);
@@ -1336,7 +1523,28 @@ ${inspHTML}${photoHTML}${docHTML}
         };
     }
 
-    async function generatePdfBlob() {
+    async function appendAttachedPdfPages(basePdfBlob) {
+        const pdfDocs = savedDocs.map(buildDocState).filter(isPdfAttachment);
+        if (!pdfDocs.length || !PDFLibRef?.PDFDocument) {
+            return basePdfBlob;
+        }
+
+        const mergedPdf = await PDFLibRef.PDFDocument.load(await basePdfBlob.arrayBuffer());
+        for (const doc of pdfDocs) {
+            try {
+                const attachmentPdf = await PDFLibRef.PDFDocument.load(await getDocumentBytes(doc), { ignoreEncryption: true });
+                const copiedPages = await mergedPdf.copyPages(attachmentPdf, attachmentPdf.getPageIndices());
+                copiedPages.forEach(page => mergedPdf.addPage(page));
+            } catch (error) {
+                console.warn('[PDF] Could not append attached PDF:', doc.name, error.message);
+            }
+        }
+
+        const mergedBytes = await mergedPdf.save();
+        return new Blob([mergedBytes], { type: 'application/pdf' });
+    }
+
+    async function generateBasePdfBlob() {
         const formData = collectFormData();
         const settings = JSON.parse(getItem('shopAppSettings') || '{}');
         const workOrderNumber = document.getElementById('wo-number-display').textContent || 'Draft';
@@ -1540,6 +1748,11 @@ ${inspHTML}${photoHTML}${docHTML}
         console.log('[PDF] blob size:', blob.size, 'bytes');
         if (blob.size < 5000) console.warn('[PDF] WARNING: blob is very small, may be blank');
         return blob;
+    }
+
+    async function generatePdfBlob() {
+        const basePdfBlob = await generateBasePdfBlob();
+        return await appendAttachedPdfPages(basePdfBlob);
     }
 
     async function generateAndUploadCompletionPdf(workOrderNumber) {

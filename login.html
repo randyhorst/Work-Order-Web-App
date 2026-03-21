@@ -56,6 +56,25 @@
     const settings = JSON.parse(getItem('shopAppSettings') || '{}');
     document.getElementById('company-name-display').textContent = settings.companyName || 'Shop Work Orders';
 
+    function isIosStandaloneMode() {
+        const ua = navigator.userAgent || '';
+        const isiOS = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        return isiOS && standalone;
+    }
+
+    function getFirebaseInitErrorMessage() {
+        const params = new URLSearchParams(window.location.search);
+        const hasBootstrapHint = !!(params.get('p') || params.get('projectId'));
+        if (isIosStandaloneMode()) {
+            return 'Unable to connect to the app. Please open the app link from Settings in Safari first, then re-add to Home Screen.';
+        }
+        if (hasBootstrapHint) {
+            return 'Unable to connect to the app on this device right now. Please refresh and try again, or reopen the app link from Settings.';
+        }
+        return 'Unable to connect to the app on this device. Please open the app link from Settings first, then try signing in again.';
+    }
+
     let firebaseOk = false;
 
     // Attach ALL event listeners FIRST before any async operations
@@ -74,7 +93,7 @@
             }
         }
         if (!firebaseOk) {
-            errEl.textContent = 'Unable to connect to the app. Please open the app link from Settings in Safari first, then re-add to Home Screen.';
+            errEl.textContent = getFirebaseInitErrorMessage();
             errEl.classList.remove('hidden');
             return;
         }

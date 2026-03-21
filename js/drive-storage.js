@@ -280,6 +280,19 @@ export async function uploadFileToDrive(file) {
     });
 }
 
+export async function downloadFileBlobFromDrive(driveFileId) {
+    if (!driveFileId) throw new Error('Drive file ID is required.');
+    const token = await getAccessToken();
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media&supportsAllDrives=true`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `Drive download failed (${response.status})`);
+    }
+    return await response.blob();
+}
+
 /**
  * Delete a file from Google Drive by its file ID.
  * Silently ignores 404 (already deleted).
