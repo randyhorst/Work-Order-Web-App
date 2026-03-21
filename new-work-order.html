@@ -958,16 +958,32 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        // Simple approach: populate print-preview and capture it directly
+        // Debug: Let's see what's happening
+        console.log('[PDF] Starting generation...');
         generatePrintView();
+        
         const pp = document.getElementById('print-preview');
+        console.log('[PDF] Print preview element:', pp);
+        console.log('[PDF] Print preview visible:', !pp.classList.contains('hidden'));
+        console.log('[PDF] Print preview height:', pp.offsetHeight);
+        console.log('[PDF] Print preview content length:', pp.innerHTML.length);
+        
+        // Check if key elements are populated
+        const unitEl = document.getElementById('report-unit');
+        const employeeEl = document.getElementById('report-employee');
+        console.log('[PDF] Unit element:', unitEl?.textContent);
+        console.log('[PDF] Employee element:', employeeEl?.textContent);
         
         // Wait for content to populate
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Hide non-print elements
         const noPrintEls = pp.querySelectorAll('.no-print');
+        console.log('[PDF] Hiding', noPrintEls.length, 'non-print elements');
         noPrintEls.forEach(el => el.style.display = 'none');
+        
+        console.log('[PDF] Final print preview height before capture:', pp.offsetHeight);
+        console.log('[PDF] Final print preview visibility:', getComputedStyle(pp).display);
         
         try {
             const blob = await window.html2pdf()
@@ -979,7 +995,7 @@ ${inspHTML}${photoHTML}
                         scale: 2, 
                         useCORS: true, 
                         backgroundColor: '#ffffff', 
-                        logging: false
+                        logging: true  // Enable logging to see what html2canvas is doing
                     },
                     jsPDF: { 
                         unit: 'in', 
@@ -992,6 +1008,9 @@ ${inspHTML}${photoHTML}
                 .output('blob');
             
             console.log('[PDF] blob size:', blob.size, 'bytes');
+            if (blob.size < 1000) {
+                console.error('[PDF] ERROR: Blob is very small, something went wrong');
+            }
             return blob;
         } finally {
             // Restore hidden elements
