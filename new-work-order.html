@@ -318,6 +318,131 @@
     // Unique attachment IDs
     function makeId() { return '_' + Math.random().toString(36).substr(2, 9); }
 
+    function getPhotoSource(photo) {
+        return photo?.src || photo?.dataUrl || photo?.driveContentLink || photo?.driveMeta?.webContentLink || '';
+    }
+
+    function buildPhotoState(photo) {
+        const driveMeta = photo?.driveMeta || ((photo?.driveFileId || photo?.driveViewLink || photo?.driveContentLink) ? {
+            id: photo.driveFileId || '',
+            webViewLink: photo.driveViewLink || '',
+            webContentLink: photo.driveContentLink || ''
+        } : null);
+        return {
+            id: photo?.id || makeId(),
+            name: photo?.file?.name || photo?.name || 'Photo',
+            contentType: photo?.file?.type || photo?.contentType || 'image/jpeg',
+            size: photo?.file?.size || photo?.size || 0,
+            src: getPhotoSource(photo),
+            driveMeta
+        };
+    }
+
+    function buildDocState(doc) {
+        const driveMeta = doc?.driveMeta || ((doc?.driveFileId || doc?.driveViewLink || doc?.driveContentLink) ? {
+            id: doc.driveFileId || '',
+            webViewLink: doc.driveViewLink || '',
+            webContentLink: doc.driveContentLink || '',
+            mimeType: doc.contentType || ''
+        } : null);
+        return {
+            id: doc?.id || makeId(),
+            name: doc?.file?.name || doc?.name || 'Attachment',
+            contentType: doc?.file?.type || doc?.contentType || '',
+            size: doc?.file?.size || doc?.size || 0,
+            dataUrl: doc?.dataUrl || doc?.src || '',
+            driveMeta
+        };
+    }
+
+    function renderSavedPhoto(photo) {
+        const src = getPhotoSource(photo);
+        if (!src) return;
+        const container = document.getElementById('photo-preview-container');
+        const wrapper = document.createElement('div');
+        wrapper.className = 'relative';
+        wrapper.dataset.photoId = photo.id;
+        wrapper.innerHTML = `
+            <img src="${src}" class="w-full h-auto rounded-lg border-2 border-gray-600 object-cover">
+            <button type="button" onclick="removePhoto('${photo.id}')" class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-7 h-7 text-sm font-bold leading-none flex items-center justify-center shadow">×</button>
+        `;
+        container.appendChild(wrapper);
+    }
+
+    function renderSavedDoc(doc) {
+        const list = document.getElementById('doc-list');
+        const icon = doc.contentType === 'application/pdf' ? '📄' : '🖼️';
+        const viewLink = doc.driveMeta?.webViewLink || doc.dataUrl || '';
+        const sizeText = doc.size ? `${(doc.size / 1024).toFixed(0)} KB` : '';
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2';
+        row.dataset.docId = doc.id;
+        row.innerHTML = `
+            <span class="text-lg">${icon}</span>
+            ${viewLink ? `<a href="${viewLink}" target="_blank" class="text-sm text-indigo-300 hover:underline flex-1 truncate">${doc.name}</a>` : `<span class="text-sm text-white flex-1 truncate">${doc.name}</span>`}
+            <span class="text-xs text-gray-400">${sizeText}</span>
+            <button type="button" onclick="removeDoc('${doc.id}')" class="text-red-400 hover:text-red-300 font-bold text-lg px-1">×</button>
+        `;
+        list.appendChild(row);
+    }
+
+    function restoreSavedAttachments(attachments = []) {
+        savedPhotos = [];
+        savedDocs = [];
+        document.getElementById('photo-preview-container').innerHTML = '';
+        document.getElementById('doc-list').innerHTML = '';
+
+        attachments.forEach(att => {
+            if (att.type === 'photo') {
+                const photo = buildPhotoState(att);
+                if (!photo.src) return;
+                savedPhotos.push(photo);
+                renderSavedPhoto(photo);
+                return;
+            }
+
+            const doc = buildDocState(att);
+            savedDocs.push(doc);
+            renderSavedDoc(doc);
+        });
+    }
+
+    function getSavedPhotoSources() {
+        const sources = savedPhotos.map(getPhotoSource).filter(Boolean);
+        if (sources.length) return sources;
+        return Array.from(document.querySelectorAll('#photo-preview-container img')).map(img => img.src).filter(Boolean);
+    }
+
+    function serializePhotoAttachment(photo) {
+        const normalized = buildPhotoState(photo);
+        return {
+            id: normalized.id,
+            name: normalized.name,
+            type: 'photo',
+            contentType: normalized.contentType,
+            size: normalized.size,
+            src: normalized.src,
+            driveFileId: normalized.driveMeta?.id || '',
+            driveViewLink: normalized.driveMeta?.webViewLink || '',
+            driveContentLink: normalized.driveMeta?.webContentLink || ''
+        };
+    }
+
+    function serializeDocAttachment(doc) {
+        const normalized = buildDocState(doc);
+        return {
+            id: normalized.id,
+            name: normalized.name,
+            type: 'pdf',
+            contentType: normalized.contentType,
+            size: normalized.size,
+            src: normalized.dataUrl || '',
+            driveFileId: normalized.driveMeta?.id || '',
+            driveViewLink: normalized.driveMeta?.webViewLink || '',
+            driveContentLink: normalized.driveMeta?.webContentLink || ''
+        };
+    }
+
     // Check if editing existing work order
     const params = new URLSearchParams(window.location.search);
     const editId = params.get('id');
@@ -364,6 +489,7 @@
                 // Hook auto-save on every checkbox/note change (all roles including viewer can tick checklist)
                 scheduleChecklistAutoSave();
             }
+            restoreSavedAttachments(wo.attachments || []);
 
             // Viewers can see existing WOs but cannot edit fields or save
             if (isViewer) {
@@ -528,14 +654,15 @@
 
             try {
                 let imgSrc, driveMeta = null;
-                if (isDriveConfigured()) {
+                const driveReady = isDriveConfigured() || await isDriveConfiguredAsync();
+                if (driveReady) {
                     driveMeta = await uploadFileToDrive(file);
                     imgSrc = driveMeta.webContentLink;
                 } else {
                     // Fallback: store as dataUrl (no Drive configured)
                     imgSrc = await new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(file); });
                 }
-                savedPhotos.push({ id, dataUrl: imgSrc, file, driveMeta });
+                savedPhotos.push(buildPhotoState({ id, file, src: imgSrc, dataUrl: imgSrc, driveMeta }));
                 wrapper.innerHTML = `
                     <img src="${imgSrc}" class="w-full h-auto rounded-lg border-2 border-gray-600 object-cover">
                     <button type="button" onclick="removePhoto('${id}')" class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-7 h-7 text-sm font-bold leading-none flex items-center justify-center shadow">×</button>
@@ -571,12 +698,13 @@
             list.appendChild(row);
             try {
                 let driveMeta = null, dataUrl = null;
-                if (isDriveConfigured()) {
+                const driveReady = isDriveConfigured() || await isDriveConfiguredAsync();
+                if (driveReady) {
                     driveMeta = await uploadFileToDrive(file);
                 } else {
                     dataUrl = await new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(file); });
                 }
-                savedDocs.push({ id, name: file.name, file, dataUrl, driveMeta });
+                savedDocs.push(buildDocState({ id, name: file.name, file, dataUrl, driveMeta }));
                 const viewLink = driveMeta ? driveMeta.webViewLink : null;
                 row.innerHTML = `
                     <span class="text-lg">${icon}</span>
@@ -626,9 +754,8 @@
         const externalVendor = isExternal ? getVal('external-vendor') : null;
         const externalInvoice = isExternal ? getVal('external-invoice') : null;
         const priorityLabels = { priority_1: 'Priority 1 — Urgent', priority_2: 'Priority 2 — Important', priority_3: 'Priority 3 — Normal', low: 'Low' };
-        // Pending attachment metadata (URLs filled in on actual Firebase save)
-        const pendingPhotos = savedPhotos.map(p => ({ id: p.id, name: p.file.name, type: 'photo', contentType: p.file.type, size: p.file.size }));
-        const pendingDocs = savedDocs.map(d => ({ id: d.id, name: d.file.name, type: 'pdf', contentType: d.file.type, size: d.file.size }));
+        const pendingPhotos = savedPhotos.map(serializePhotoAttachment);
+        const pendingDocs = savedDocs.map(serializeDocAttachment);
         return {
             unitOrDescription: getVal('unit-number'),
             requestedBy: getVal('employee-name'),
@@ -778,13 +905,13 @@
             inspSection.classList.remove('hidden');
         } else { inspSection.classList.add('hidden'); }
 
-        const photos = document.getElementById('photo-preview-container').querySelectorAll('img');
+        const photoSources = getSavedPhotoSources();
         const photoSection = document.getElementById('report-photo-section');
         const photoCont = document.getElementById('report-photo-container');
         photoCont.innerHTML = '';
-        if (photos.length > 0) {
+        if (photoSources.length > 0) {
             photoSection.classList.remove('hidden');
-            photos.forEach(img => { const i = document.createElement('img'); i.src = img.src; photoCont.appendChild(i); });
+            photoSources.forEach(src => { const i = document.createElement('img'); i.src = src; photoCont.appendChild(i); });
         } else { photoSection.classList.add('hidden'); }
 
         document.getElementById('form-view').classList.add('hidden');
@@ -972,6 +1099,16 @@ ${inspHTML}${photoHTML}
         });
     }
 
+    function buildPdfCheckCell(checked) {
+        if (!checked) return { text: '', style: 'pdfTableCheck', alignment: 'center' };
+        return {
+            svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M1.5 6.5L4.5 9.5L10.5 2.5" fill="none" stroke="#111827" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            fit: [10, 10],
+            alignment: 'center',
+            margin: [0, 1, 0, 0]
+        };
+    }
+
     function buildChecklistPdfNode(checklistData) {
         if (!checklistData) return null;
 
@@ -990,7 +1127,7 @@ ${inspHTML}${photoHTML}
 
             section.items.forEach(item => {
                 body.push([
-                    { text: item.checked ? '✓' : '', style: 'pdfTableCheck', alignment: 'center' },
+                    buildPdfCheckCell(item.checked),
                     { text: item.name || ' ', style: 'pdfTableCell' },
                     { text: item.notes || '', style: 'pdfTableCell', italics: !!item.notes }
                 ]);
@@ -1006,7 +1143,7 @@ ${inspHTML}${photoHTML}
 
             checklistData.customItems.forEach(item => {
                 body.push([
-                    { text: item.checked ? '✓' : '', style: 'pdfTableCheck', alignment: 'center' },
+                    buildPdfCheckCell(item.checked),
                     { text: item.name || ' ', style: 'pdfTableCell' },
                     { text: item.notes || '', style: 'pdfTableCell', italics: !!item.notes }
                 ]);
@@ -1051,7 +1188,7 @@ ${inspHTML}${photoHTML}
         const formData = collectFormData();
         const settings = JSON.parse(getItem('shopAppSettings') || '{}');
         const workOrderNumber = document.getElementById('wo-number-display').textContent || 'Draft';
-        const photoSources = Array.from(document.querySelectorAll('#photo-preview-container img')).map(img => img.src).filter(Boolean);
+        const photoSources = getSavedPhotoSources();
         const images = {};
 
         if (settings.logoUrl) {

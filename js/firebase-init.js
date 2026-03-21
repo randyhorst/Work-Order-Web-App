@@ -12,6 +12,7 @@ import { getStorage } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-
 import { getItem, setItem } from './storage.js';
 
 const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
+const APP_SETTINGS_KEY = 'shopAppSettings';
 
 async function bootstrapConfigFromFirestore(projectId) {
     if (!projectId) return false;
@@ -40,7 +41,7 @@ async function bootstrapConfigFromFirestore(projectId) {
             googleClientId: getString('googleClientId')
         };
         setItem(APP_CONFIG_KEY, JSON.stringify(config));
-        setItem('shopAppSettings', JSON.stringify(appSettings));
+        setItem(APP_SETTINGS_KEY, JSON.stringify(appSettings));
         return true;
     } catch {
         return false;
@@ -62,6 +63,12 @@ function getStoredConfig() {
     try { return JSON.parse(raw); } catch { return null; }
 }
 
+function getStoredSettings() {
+    const raw = getItem(APP_SETTINGS_KEY);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+}
+
 let _app = null, _auth = null, _db = null, _storage = null;
 
 // Tiny dedicated cookie for the project ID — survives iOS PWA context switches
@@ -74,6 +81,28 @@ function getProjectIdCookie() {
         const m = document.cookie.match(/(?:^|; )shopPID=([^;]*)/);
         return m ? decodeURIComponent(m[1]) : '';
     } catch { return ''; }
+}
+
+async function ensureAppSettingsBootstrap() {
+    const currentSettings = getStoredSettings();
+    if (currentSettings?.companyId && (currentSettings.googleClientId || currentSettings.driveFolderId || currentSettings.companyName)) {
+        return true;
+    }
+
+    try {
+        const { getItemFromSWCache } = await import('./storage.js');
+        const raw = await getItemFromSWCache(APP_SETTINGS_KEY);
+        if (raw) return true;
+    } catch(e) {
+        console.log('[Firebase] App settings SW fallback failed:', e.message);
+    }
+
+    const projectId = getStoredConfig()?.projectId || getBootstrapProjectId() || getProjectIdCookie();
+    if (!projectId) return !!getStoredSettings();
+
+    console.log('[Firebase] Bootstrapping app settings from Firestore:', projectId);
+    await bootstrapConfigFromFirestore(projectId);
+    return !!getStoredSettings();
 }
 
 export function initFirebase() {
@@ -97,29 +126,41 @@ export function initFirebase() {
  */
 export async function initFirebaseAsync() {
     // Fast path: sync init works
-    if (initFirebase()) return true;
+    if (initFirebase()) {
+        await ensureAppSettingsBootstrap();
+        return true;
+    }
     console.log('[Firebase] Sync init failed, trying fallbacks...');
     // Fallback 1: try SW cache (shared between Safari and standalone PWA on iOS)
     try {
         const { getItemFromSWCache } = await import('./storage.js');
         const raw = await getItemFromSWCache(APP_CONFIG_KEY);
         if (raw) {
-            await getItemFromSWCache('shopAppSettings');
-            if (initFirebase()) return true;
+            await getItemFromSWCache(APP_SETTINGS_KEY);
+            if (initFirebase()) {
+                await ensureAppSettingsBootstrap();
+                return true;
+            }
         }
     } catch(e) { console.log('[Firebase] SW cache fallback failed:', e.message); }
     // Fallback 2: try public Firestore bootstrap using projectId in URL
     const projectId = getBootstrapProjectId();
     if (projectId) {
         const bootstrapped = await bootstrapConfigFromFirestore(projectId);
-        if (bootstrapped && initFirebase()) return true;
+        if (bootstrapped && initFirebase()) {
+            await ensureAppSettingsBootstrap();
+            return true;
+        }
     }
     // Fallback 3: tiny projectId cookie (most reliable on iOS PWA)
     const cookiePID = getProjectIdCookie();
     if (cookiePID) {
         console.log('[Firebase] Trying bootstrap from projectId cookie:', cookiePID);
         const bootstrapped = await bootstrapConfigFromFirestore(cookiePID);
-        if (bootstrapped && initFirebase()) return true;
+        if (bootstrapped && initFirebase()) {
+            await ensureAppSettingsBootstrap();
+            return true;
+        }
     }
     console.log('[Firebase] All init methods failed');
     return false;
