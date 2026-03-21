@@ -960,77 +960,24 @@ ${inspHTML}${photoHTML}
     async function generatePdfBlob() {
         generatePrintView();
         const pp = document.getElementById('print-preview');
-
         const noPrintEls = pp.querySelectorAll('.no-print');
         noPrintEls.forEach(el => el.style.display = 'none');
-
-        const clone = pp.cloneNode(true);
-        clone.id = 'print-preview-pdf-clone';
-        clone.classList.remove('hidden');
-        clone.querySelectorAll('.no-print').forEach(el => el.remove());
-        clone.style.width = '8.5in';
-        clone.style.maxWidth = '8.5in';
-        clone.style.minHeight = '0';
-        clone.style.padding = '0.5in';
-        clone.style.margin = '0';
-        clone.style.boxSizing = 'border-box';
-        clone.style.position = 'fixed';
-        clone.style.left = '0';
-        clone.style.top = '0';
-        clone.style.zIndex = '99999';
-        clone.style.backgroundColor = '#ffffff';
-        clone.style.color = '#000000';
-        clone.style.overflow = 'visible';
-        clone.style.transform = 'none';
-        document.body.appendChild(clone);
-
-        const cloneImages = Array.from(clone.querySelectorAll('img'));
-        await Promise.all(cloneImages.map(img => {
-            if (img.complete) return Promise.resolve();
-            return new Promise(resolve => {
-                const done = () => resolve();
-                img.addEventListener('load', done, { once: true });
-                img.addEventListener('error', done, { once: true });
-                setTimeout(done, 1500);
-            });
-        }));
-
         window.scrollTo(0, 0);
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 500));
+        const blob = await window.html2pdf()
+            .set({
+                margin: 0.3,
+                filename: 'worksheet.pdf',
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, windowWidth: pp.scrollWidth },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            })
+            .from(pp)
+            .output('blob');
 
-        try {
-            const blob = await window.html2pdf()
-                .set({
-                    margin: 0,
-                    filename: 'worksheet.pdf',
-                    image: { type: 'jpeg', quality: 0.98 },
-                    pagebreak: { mode: ['css', 'legacy'] },
-                    html2canvas: {
-                        scale: 2,
-                        useCORS: true,
-                        backgroundColor: '#ffffff',
-                        scrollX: 0,
-                        scrollY: 0,
-                        width: clone.scrollWidth,
-                        windowWidth: clone.scrollWidth,
-                        logging: false
-                    },
-                    jsPDF: {
-                        unit: 'in',
-                        format: 'letter',
-                        orientation: 'portrait',
-                        compress: true
-                    }
-                })
-                .from(clone)
-                .outputPdf('blob');
-
-            return blob;
-        } finally {
-            if (clone.parentNode) clone.parentNode.removeChild(clone);
-            noPrintEls.forEach(el => el.style.display = '');
-            showFormView();
-        }
+        noPrintEls.forEach(el => el.style.display = '');
+        showFormView();
+        return blob;
     }
 
     async function generateAndUploadCompletionPdf(workOrderNumber) {
