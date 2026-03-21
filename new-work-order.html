@@ -963,7 +963,7 @@ ${inspHTML}${photoHTML}
         const pp = document.getElementById('print-preview');
         
         // Wait for content to populate
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Hide non-print elements
         const noPrintEls = pp.querySelectorAll('.no-print');
