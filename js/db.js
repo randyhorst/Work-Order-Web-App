@@ -282,7 +282,7 @@ export async function setUserTheme(uid, theme) {
 
 // ── Invite Codes ─────────────────────────────────────────────
 
-export async function createInviteCode(role = 'worker', createdBy) {
+export async function createInviteCode(role = 'viewer', createdBy) {
     const db = getDbInstance();
     const companyId = getCompanyId();
     const code = Math.random().toString(36).substring(2, 10).toUpperCase();

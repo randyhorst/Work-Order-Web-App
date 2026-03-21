@@ -25,7 +25,7 @@ export async function logoutUser() {
     return signOut(auth);
 }
 
-export async function registerUser(email, password, name, companyId, role = 'worker') {
+export async function registerUser(email, password, name, companyId, role = 'viewer') {
     const auth = getAuthInstance();
     const db = getDbInstance();
     const cred = await createUserWithEmailAndPassword(auth, email, password);

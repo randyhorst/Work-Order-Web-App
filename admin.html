@@ -37,13 +37,13 @@
         </div>
         <div class="flex items-center gap-2">
             <select id="invite-role" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
-                <option value="viewer">Viewer (view-only)</option>
+                <option value="viewer" selected>Viewer (view-only)</option>
                 <option value="worker">Worker</option>
                 <option value="admin">Admin</option>
             </select>
         </div>
         <div id="invite-result" class="hidden bg-gray-800 border border-indigo-500 rounded-xl p-4 space-y-3">
-            <p class="text-sm text-gray-400">Send this link to your worker — it pre-fills the invite code automatically. Expires in 7 days.</p>
+            <p class="text-sm text-gray-400">Send this link to your teammate — it pre-fills the invite code automatically. Expires in 7 days.</p>
             <div class="flex items-center gap-2 bg-gray-900 border border-gray-600 rounded-lg px-3 py-2">
                 <a id="invite-link-display" href="#" target="_blank" class="text-indigo-300 text-xs font-mono flex-1 truncate"></a>
                 <button onclick="copyInviteLink()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg transition flex-shrink-0">📋 Copy Link</button>
