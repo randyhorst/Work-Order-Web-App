@@ -958,50 +958,54 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        // Use your original buildPrintHTML() approach
+        // Use the exact same approach as the print button - iframe with buildPrintHTML()
         generatePrintView();
         const html = buildPrintHTML();
         
-        // Create a temporary element with the HTML
-        const tempEl = document.createElement('div');
-        tempEl.style.position = 'fixed';
-        tempEl.style.left = '-9999px';
-        tempEl.style.top = '0';
-        tempEl.style.width = '8.5in';
-        tempEl.style.height = '11in';
-        tempEl.style.backgroundColor = 'white';
-        tempEl.style.overflow = 'hidden';
-        document.body.appendChild(tempEl);
-        
-        tempEl.innerHTML = html;
-        
-        try {
-            const blob = await window.html2pdf()
-                .set({
-                    margin: 0,
-                    filename: 'worksheet.pdf',
-                    image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { 
-                        scale: 1, 
-                        useCORS: true, 
-                        backgroundColor: '#ffffff',
-                        width: tempEl.scrollWidth,
-                        height: tempEl.scrollHeight
-                    },
-                    jsPDF: { 
-                        unit: 'in', 
-                        format: 'letter', 
-                        orientation: 'portrait'
-                    }
-                })
-                .from(tempEl)
-                .output('blob');
+        return new Promise((resolve, reject) => {
+            // Create iframe just like the print button does
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:8.5in;height:11in;border:none;';
+            document.body.appendChild(iframe);
             
-            showFormView();
-            return blob;
-        } finally {
-            document.body.removeChild(tempEl);
-        }
+            iframe.onload = async function() {
+                try {
+                    // Wait a moment for content to render
+                    await new Promise(r => setTimeout(r, 300));
+                    
+                    // Capture the iframe body content (this is the format you like)
+                    const blob = await window.html2pdf()
+                        .set({
+                            margin: 0,
+                            filename: 'worksheet.pdf',
+                            image: { type: 'jpeg', quality: 0.95 },
+                            html2canvas: { 
+                                scale: 1, 
+                                useCORS: true, 
+                                backgroundColor: '#ffffff',
+                                window: iframe.contentWindow
+                            },
+                            jsPDF: { 
+                                unit: 'in', 
+                                format: 'letter', 
+                                orientation: 'portrait'
+                            }
+                        })
+                        .from(iframe.contentDocument.body)
+                        .output('blob');
+                    
+                    document.body.removeChild(iframe);
+                    showFormView();
+                    resolve(blob);
+                } catch (e) {
+                    document.body.removeChild(iframe);
+                    showFormView();
+                    reject(e);
+                }
+            };
+            
+            iframe.srcdoc = html;
+        });
     }
 
     async function generateAndUploadCompletionPdf(workOrderNumber) {
