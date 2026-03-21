@@ -958,8 +958,24 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        // Use the corrected buildPrintHTML() but extract only the body content
+        // First populate the print-preview with data
         generatePrintView();
+        
+        // Wait for the print-preview to be visible and rendered
+        await new Promise(resolve => {
+            const checkRender = () => {
+                const pp = document.getElementById('print-preview');
+                if (pp && !pp.classList.contains('hidden') && pp.offsetHeight > 0) {
+                    // Additional wait for content to fully render
+                    setTimeout(resolve, 300);
+                } else {
+                    setTimeout(checkRender, 50);
+                }
+            };
+            checkRender();
+        });
+        
+        // Now build the HTML from the populated print-preview
         const html = buildPrintHTML();
         
         // Extract just the body content and styles from the HTML
@@ -988,6 +1004,9 @@ ${inspHTML}${photoHTML}
         
         // Add the styles to the div
         tempDiv.innerHTML = `<style>${styleContent}</style>${bodyContent}`;
+        
+        // Wait for the temp content to render
+        await new Promise(resolve => setTimeout(resolve, 200));
         
         try {
             const blob = await window.html2pdf()
