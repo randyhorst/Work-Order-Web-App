@@ -963,35 +963,35 @@ ${inspHTML}${photoHTML}
         const html = buildPrintHTML();
         
         return new Promise((resolve, reject) => {
-            // Create iframe just like the print button does
+            // Create iframe with no padding/margins
             const iframe = document.createElement('iframe');
-            iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:8.5in;height:11in;border:none;';
+            iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:8.5in;height:11in;border:none;padding:0;margin:0;';
             document.body.appendChild(iframe);
             
             iframe.onload = async function() {
                 try {
                     // Wait a moment for content to render
-                    await new Promise(r => setTimeout(r, 300));
+                    await new Promise(r => setTimeout(r, 500));
                     
-                    // Get the actual content bounds to avoid capturing empty space
+                    // Remove any default padding from the iframe body
                     const body = iframe.contentDocument.body;
-                    const rect = body.getBoundingClientRect();
-                    const height = Math.max(body.scrollHeight, rect.height);
+                    body.style.margin = '0';
+                    body.style.padding = '0';
                     
-                    // Capture only the content area
+                    // Capture the entire iframe content
                     const blob = await window.html2pdf()
                         .set({
-                            margin: [0, 0, 0, 0],
+                            margin: 0,
                             filename: 'worksheet.pdf',
-                            image: { type: 'jpeg', quality: 0.95 },
+                            image: { type: 'jpeg', quality: 0.98 },
                             html2canvas: { 
-                                scale: 2, 
+                                scale: 1.5, 
                                 useCORS: true, 
                                 backgroundColor: '#ffffff',
                                 window: iframe.contentWindow,
-                                height: height,
+                                scrollY: 0,
                                 y: 0,
-                                scrollY: 0
+                                x: 0
                             },
                             jsPDF: { 
                                 unit: 'in', 
@@ -1000,7 +1000,7 @@ ${inspHTML}${photoHTML}
                                 compress: false
                             }
                         })
-                        .from(body)
+                        .from(iframe)
                         .output('blob');
                     
                     document.body.removeChild(iframe);
