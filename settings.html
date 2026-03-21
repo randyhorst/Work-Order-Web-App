@@ -177,7 +177,7 @@
     import { initFirebase, initFirebaseAsync, getAuthInstance, getDbInstance } from './js/firebase-init.js';
     import { registerUser, getCurrentUserProfile, onAuthChange } from './js/auth.js';
     import { getUsers, updateUser } from './js/db.js';
-    import { getItem, setItem } from './js/storage.js';
+    import { getItem, getItemAsync, setItem } from './js/storage.js';
     import { forceReAuth } from './js/drive-storage.js';
 
     const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
@@ -193,6 +193,19 @@
         if (isAdminUser()) return true;
         alert(message);
         return false;
+    }
+
+    function parseStoredJson(raw) {
+        try { return JSON.parse(raw || '{}'); } catch { return {}; }
+    }
+
+    function updateDriveBadge(settings = {}) {
+        const driveBadge = document.getElementById('drive-status');
+        const configured = !!settings.googleClientId;
+        driveBadge.textContent = configured ? '✓ Configured' : 'Not configured';
+        driveBadge.className = configured
+            ? 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300'
+            : 'text-xs px-3 py-1 rounded-full bg-gray-700 text-gray-400';
     }
 
     function setSettingsLocked(locked) {
@@ -229,15 +242,11 @@
     await initFirebaseAsync();
 
     // Load saved values on page load
-    const savedCfg = JSON.parse(getItem(APP_CONFIG_KEY) || '{}');
-    const savedSettings = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
+    const savedCfg = parseStoredJson(await getItemAsync(APP_CONFIG_KEY));
+    const savedSettings = parseStoredJson(await getItemAsync(APP_SETTINGS_KEY));
 
     // Update Drive status badge based on saved config
-    const driveBadge = document.getElementById('drive-status');
-    if (savedSettings.googleClientId) {
-        driveBadge.textContent = '✓ Configured';
-        driveBadge.className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
-    }
+    updateDriveBadge(savedSettings);
     document.querySelector('a[href="login.html"]')?.setAttribute('href', `login.html${bootstrapSearch}`);
 
     if (savedCfg.apiKey) {
@@ -348,11 +357,7 @@
             googleClientId: clientId
         };
         setItem(APP_SETTINGS_KEY, JSON.stringify(updated));
-        const badge = document.getElementById('drive-status');
-        if (clientId && folderId) {
-            badge.textContent = '✓ Configured';
-            badge.className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
-        }
+        updateDriveBadge(updated);
         showStatus('drive-save-status', '✓ Drive settings saved.', 'text-green-400');
         publishPublicAppConfig(null, updated);
     };

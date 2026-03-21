@@ -31,6 +31,17 @@ function getSettings() {
     try { return JSON.parse(getItem(SETTINGS_KEY) || '{}'); } catch { return {}; }
 }
 
+async function getSettingsAsync() {
+    const syncSettings = getSettings();
+    try {
+        const raw = await getItemAsync(SETTINGS_KEY);
+        const asyncSettings = JSON.parse(raw || '{}');
+        return { ...asyncSettings, ...syncSettings };
+    } catch {
+        return syncSettings;
+    }
+}
+
 function getCachedToken() {
     if (_accessToken && _tokenExpiresAt > Date.now() + 60_000) return _accessToken;
     try {
@@ -79,7 +90,7 @@ export async function getAccessToken() {
     const cached = getCachedToken();
     if (cached) return cached;
 
-    const { googleClientId } = getSettings();
+    const { googleClientId } = await getSettingsAsync();
     if (!googleClientId) throw new Error('Google OAuth Client ID is not configured. Go to Settings → Google Drive.');
 
     await loadGSI();
@@ -241,7 +252,7 @@ export async function uploadPdfToUnitFolder(blob, fileName, unitNumber) {
  * Returns metadata: { id, name, webViewLink, webContentLink, mimeType, size }
  */
 export async function uploadFileToDrive(file) {
-    const { driveFolderId } = getSettings();
+    const { driveFolderId } = await getSettingsAsync();
     return uploadToDrive({
         blob: file,
         name: file.name,
@@ -278,7 +289,7 @@ export async function forceReAuth() {
     // Clear cached folder IDs (they belong to the old account)
     try { localStorage.removeItem(FOLDER_CACHE_KEY); } catch {}
 
-    const { googleClientId } = getSettings();
+    const { googleClientId } = await getSettingsAsync();
     if (!googleClientId) throw new Error('Set your OAuth Client ID first, then connect.');
 
     await loadGSI();
@@ -316,8 +327,7 @@ export function isDriveConfigured() {
 /** Async version — uses getItemAsync so it works even when localStorage is empty (iOS PWA). */
 export async function isDriveConfiguredAsync() {
     try {
-        const raw = await getItemAsync('shopAppSettings');
-        const { googleClientId } = JSON.parse(raw || '{}');
+        const { googleClientId } = await getSettingsAsync();
         return !!googleClientId;
     } catch { return false; }
 }

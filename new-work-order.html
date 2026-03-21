@@ -319,7 +319,7 @@
     function makeId() { return '_' + Math.random().toString(36).substr(2, 9); }
 
     function getPhotoSource(photo) {
-        return photo?.src || photo?.dataUrl || photo?.driveContentLink || photo?.driveMeta?.webContentLink || '';
+        return photo?.previewSrc || photo?.src || photo?.dataUrl || photo?.driveContentLink || photo?.driveMeta?.webContentLink || '';
     }
 
     function buildPhotoState(photo) {
@@ -328,12 +328,17 @@
             webViewLink: photo.driveViewLink || '',
             webContentLink: photo.driveContentLink || ''
         } : null);
+        const src = photo?.src || photo?.dataUrl || photo?.driveContentLink || photo?.driveMeta?.webContentLink || '';
+        const previewSrc = photo?.previewSrc || (typeof photo?.dataUrl === 'string' && /^data:image\//i.test(photo.dataUrl)
+            ? photo.dataUrl
+            : (typeof photo?.src === 'string' && /^data:image\//i.test(photo.src) ? photo.src : ''));
         return {
             id: photo?.id || makeId(),
             name: photo?.file?.name || photo?.name || 'Photo',
             contentType: photo?.file?.type || photo?.contentType || 'image/jpeg',
             size: photo?.file?.size || photo?.size || 0,
-            src: getPhotoSource(photo),
+            src,
+            previewSrc,
             driveMeta
         };
     }
@@ -353,6 +358,67 @@
             dataUrl: doc?.dataUrl || doc?.src || '',
             driveMeta
         };
+    }
+
+    async function blobToDataUrl(blob) {
+        return await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(typeof e.target?.result === 'string' ? e.target.result : '');
+            reader.onerror = () => reject(new Error('Could not read image data.'));
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    async function createPhotoPreviewDataUrl(file) {
+        const originalSrc = await blobToDataUrl(file);
+        return await new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                const width = img.naturalWidth || img.width || 1;
+                const height = img.naturalHeight || img.height || 1;
+                const scale = Math.min(1, 1280 / Math.max(width, height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(width * scale));
+                canvas.height = Math.max(1, Math.round(height * scale));
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    resolve(originalSrc);
+                    return;
+                }
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', 0.78));
+            };
+            img.onerror = () => resolve(originalSrc);
+            img.src = originalSrc;
+        });
+    }
+
+    async function fetchImageAsDataUrl(src) {
+        if (!src) return '';
+        if (/^data:image\//i.test(src)) return src;
+        const response = await fetch(src, { credentials: 'omit' });
+        if (!response.ok) throw new Error(`Image fetch failed (${response.status})`);
+        return await blobToDataUrl(await response.blob());
+    }
+
+    async function getPdfPhotoSources() {
+        const resolved = [];
+        const candidates = savedPhotos.length
+            ? savedPhotos.map(photo => photo?.previewSrc || photo?.src || photo?.dataUrl || photo?.driveContentLink || photo?.driveMeta?.webContentLink || '').filter(Boolean)
+            : Array.from(document.querySelectorAll('#photo-preview-container img')).map(img => img.src).filter(Boolean);
+
+        for (const src of candidates) {
+            try {
+                const dataUrl = await fetchImageAsDataUrl(src);
+                if (dataUrl) resolved.push(dataUrl);
+            } catch (error) {
+                console.warn('[PDF] Skipping photo:', error.message);
+            }
+        }
+
+        return resolved;
     }
 
     function renderSavedPhoto(photo) {
@@ -395,7 +461,7 @@
         attachments.forEach(att => {
             if (att.type === 'photo') {
                 const photo = buildPhotoState(att);
-                if (!photo.src) return;
+                if (!getPhotoSource(photo)) return;
                 savedPhotos.push(photo);
                 renderSavedPhoto(photo);
                 return;
@@ -421,6 +487,7 @@
             type: 'photo',
             contentType: normalized.contentType,
             size: normalized.size,
+            previewSrc: normalized.previewSrc || '',
             src: normalized.src,
             driveFileId: normalized.driveMeta?.id || '',
             driveViewLink: normalized.driveMeta?.webViewLink || '',
@@ -653,18 +720,20 @@
             container.appendChild(wrapper);
 
             try {
-                let imgSrc, driveMeta = null;
+                const previewSrc = await createPhotoPreviewDataUrl(file);
+                let imgSrc = previewSrc, driveMeta = null;
                 const driveReady = isDriveConfigured() || await isDriveConfiguredAsync();
                 if (driveReady) {
-                    driveMeta = await uploadFileToDrive(file);
-                    imgSrc = driveMeta.webContentLink;
-                } else {
-                    // Fallback: store as dataUrl (no Drive configured)
-                    imgSrc = await new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(file); });
+                    try {
+                        driveMeta = await uploadFileToDrive(file);
+                        imgSrc = driveMeta.webContentLink || previewSrc;
+                    } catch (driveErr) {
+                        console.warn('[Photo] Drive upload failed, using local preview:', driveErr.message);
+                    }
                 }
-                savedPhotos.push(buildPhotoState({ id, file, src: imgSrc, dataUrl: imgSrc, driveMeta }));
+                savedPhotos.push(buildPhotoState({ id, file, src: imgSrc, previewSrc, dataUrl: previewSrc, driveMeta }));
                 wrapper.innerHTML = `
-                    <img src="${imgSrc}" class="w-full h-auto rounded-lg border-2 border-gray-600 object-cover">
+                    <img src="${previewSrc || imgSrc}" class="w-full h-auto rounded-lg border-2 border-gray-600 object-cover">
                     <button type="button" onclick="removePhoto('${id}')" class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-7 h-7 text-sm font-bold leading-none flex items-center justify-center shadow">×</button>
                 `;
                 triggerAutoSave();
@@ -1188,7 +1257,7 @@ ${inspHTML}${photoHTML}
         const formData = collectFormData();
         const settings = JSON.parse(getItem('shopAppSettings') || '{}');
         const workOrderNumber = document.getElementById('wo-number-display').textContent || 'Draft';
-        const photoSources = getSavedPhotoSources();
+        const photoSources = await getPdfPhotoSources();
         const images = {};
 
         if (settings.logoUrl) {
