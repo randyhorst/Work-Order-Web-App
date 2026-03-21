@@ -875,31 +875,49 @@
             const imgs = document.getElementById('report-photo-container')?.querySelectorAll('img') || [];
             if (imgs.length) {
                 let imgTags = '';
-                imgs.forEach(img => { imgTags += `<img src="${img.src}" style="width:100%;height:auto;border:1px solid #e5e7eb;border-radius:4px;">`; });
+                imgs.forEach(img => { imgTags += `<img src="${img.src}" style="width:100%;height:auto;border:1px solid #e5e7eb;border-radius:4px;page-break-inside:avoid;">`; });
                 photoHTML = `<div style="margin-bottom:24px;"><h2 style="font-size:12px;font-weight:bold;text-transform:uppercase;border-bottom:1px solid #d1d5db;padding-bottom:4px;margin-bottom:12px;">Attached Photos</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${imgTags}</div></div>`;
             }
         }
 
+        // Use your exact working CSS from the original file
         return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Work Order ${woNum}</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#000;padding:0.5in;font-size:12px;line-height:1.4;}
-h1{font-size:22px;font-weight:bold;text-transform:uppercase;}
-.label{font-size:10px;font-weight:bold;text-transform:uppercase;color:#6b7280;}
-.val{font-size:14px;font-weight:bold;margin-top:2px;}
-.val-lg{font-size:18px;}
-.section-title{font-size:12px;font-weight:bold;text-transform:uppercase;border-bottom:1px solid #d1d5db;padding-bottom:4px;margin-bottom:10px;}
-.text-block{white-space:pre-wrap;font-size:12px;line-height:1.5;}
-.inspection-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:11px;}
-.inspection-table th{border-bottom:2px solid #000;text-align:left;padding:4px;font-weight:bold;text-transform:uppercase;}
-.inspection-table td{border-bottom:1px solid #e5e7eb;padding:4px;vertical-align:top;}
-.inspection-category-row td{background-color:#f3f4f6;font-weight:bold;padding:8px;}
-.check-cell{width:30px;text-align:center;font-family:monospace;font-size:14px;}
-.italic{font-style:italic;}
-table{width:100%;border-collapse:collapse;font-size:11px;}
-th{border-bottom:2px solid #000;text-align:left;padding:4px;font-weight:bold;text-transform:uppercase;}
-td{border-bottom:1px solid #e5e7eb;padding:4px;vertical-align:top;}
-@page{margin:0.5in;}
+@media print {
+    .no-print { display: none !important; }
+    body { background-color: white !important; margin: 0 !important; padding: 0 !important; color: black !important; }
+    #print-preview { display: block !important; width: 100%; min-height: 100vh; box-shadow: none !important; padding: 0.5in !important; border: none !important; margin: 0 !important; }
+    .print-text { white-space: pre-wrap; color: #000 !important; padding: 0; border: none; }
+    #report-photo-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    #report-photo-container img { width: 100%; height: auto; border: 1px solid #e5e7eb; border-radius: 4px; page-break-inside: avoid; }
+    #print-header, #print-info-grid { page-break-inside: avoid; }
+    .inspection-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px !important; }
+    .inspection-table th { border-bottom: 2px solid #000; text-align: left; padding: 4px; font-weight: bold; text-transform: uppercase; }
+    .inspection-table td { border-bottom: 1px solid #e5e7eb; padding: 4px; vertical-align: top; }
+    .inspection-category-row td { background-color: #f3f4f6; font-weight: bold; padding: 8px; }
+    .check-cell { width: 30px; text-align: center; font-family: monospace; font-size: 14px; }
+    h1 { font-size: 24px !important; }
+    h2 { font-size: 14px !important; margin-top: 20px !important; }
+    p, span, div { font-size: 12px !important; }
+    @page { margin: 0.5in; }
+}
+body { font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; background-color: white; color: black; padding: 0.5in; margin: 0; }
+h1 { font-size: 24px; font-weight: bold; text-transform: uppercase; }
+h2 { font-size: 14px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; margin-bottom: 10px; }
+.label { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #6b7280; }
+.val { font-size: 14px; font-weight: bold; margin-top: 2px; }
+.val-lg { font-size: 18px; }
+.section-title { font-size: 12px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; margin-bottom: 10px; }
+.text-block { white-space: pre-wrap; font-size: 12px; line-height: 1.5; }
+.inspection-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+.inspection-table th { border-bottom: 2px solid #000; text-align: left; padding: 4px; font-weight: bold; text-transform: uppercase; }
+.inspection-table td { border-bottom: 1px solid #e5e7eb; padding: 4px; vertical-align: top; }
+.inspection-category-row td { background-color: #f3f4f6; font-weight: bold; padding: 8px; }
+.check-cell { width: 30px; text-align: center; font-family: monospace; font-size: 14px; }
+.italic { font-style: italic; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+th { border-bottom: 2px solid #000; text-align: left; padding: 4px; font-weight: bold; text-transform: uppercase; }
+td { border-bottom: 1px solid #e5e7eb; padding: 4px; vertical-align: top; }
 </style></head><body>
 <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:20px;">
 <div><h1>Work Order</h1><p style="font-size:12px;color:#6b7280;margin-top:4px;">${woNum}</p></div>
@@ -940,35 +958,36 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        // Use the original print-preview div but with better html2pdf settings
+        // Use the corrected buildPrintHTML() with your perfect CSS
         generatePrintView();
-        const pp = document.getElementById('print-preview');
+        const html = buildPrintHTML();
         
-        // Hide non-data elements
-        const noPrintEls = pp.querySelectorAll('.no-print');
-        noPrintEls.forEach(el => el.style.display = 'none');
+        // Create a temporary div to hold the HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'fixed';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.top = '0';
+        tempDiv.style.width = '8.5in';
+        tempDiv.style.height = '11in';
+        tempDiv.style.backgroundColor = '#ffffff';
+        tempDiv.style.overflow = 'hidden';
+        document.body.appendChild(tempDiv);
         
-        // Reset the print-preview styles to match buildPrintHTML
-        pp.style.cssText = 'background:white;color:black;padding:0.5in;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;width:100%;';
-        
-        // Scroll to top and wait for render
-        window.scrollTo(0, 0);
-        await new Promise(r => setTimeout(r, 500));
+        tempDiv.innerHTML = html;
         
         try {
             const blob = await window.html2pdf()
                 .set({
                     margin: 0,
                     filename: 'worksheet.pdf',
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: { 
-                        scale: 1.5, 
+                        scale: 1, 
                         useCORS: true, 
                         backgroundColor: '#ffffff', 
                         logging: false,
-                        letterRendering: true,
-                        allowTaint: true
+                        width: tempDiv.scrollWidth,
+                        height: tempDiv.scrollHeight
                     },
                     jsPDF: { 
                         unit: 'in', 
@@ -977,15 +996,13 @@ ${inspHTML}${photoHTML}
                         compress: false
                     }
                 })
-                .from(pp)
+                .from(tempDiv)
                 .output('blob');
             
             console.log('[PDF] blob size:', blob.size, 'bytes');
             return blob;
         } finally {
-            // Restore hidden elements and styles
-            noPrintEls.forEach(el => el.style.display = '');
-            pp.style.cssText = '';
+            document.body.removeChild(tempDiv);
             showFormView();
         }
     }
