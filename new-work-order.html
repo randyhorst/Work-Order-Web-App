@@ -958,68 +958,76 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        // generatePrintView() populates and shows the print-preview div
         generatePrintView();
         const pp = document.getElementById('print-preview');
 
-        // Hide buttons inside print-preview
         const noPrintEls = pp.querySelectorAll('.no-print');
         noPrintEls.forEach(el => el.style.display = 'none');
 
-        // Save original styles so we can restore them after capture
-        const origPP = pp.style.cssText;
-        const appEl = document.getElementById('app');
-        const origApp = appEl ? appEl.style.cssText : '';
+        const clone = pp.cloneNode(true);
+        clone.id = 'print-preview-pdf-clone';
+        clone.classList.remove('hidden');
+        clone.querySelectorAll('.no-print').forEach(el => el.remove());
+        clone.style.width = '8.5in';
+        clone.style.maxWidth = '8.5in';
+        clone.style.minHeight = '0';
+        clone.style.padding = '0.5in';
+        clone.style.margin = '0';
+        clone.style.boxSizing = 'border-box';
+        clone.style.position = 'fixed';
+        clone.style.left = '0';
+        clone.style.top = '0';
+        clone.style.zIndex = '99999';
+        clone.style.backgroundColor = '#ffffff';
+        clone.style.color = '#000000';
+        clone.style.overflow = 'visible';
+        clone.style.transform = 'none';
+        document.body.appendChild(clone);
 
-        // Temporarily style the print-preview to match letter paper exactly:
-        // - Remove parent max-width so it can fill 8.5in
-        // - Position at top-left so html2canvas captures from (0,0)
-        // - Set exact letter width with 0.5in padding
-        if (appEl) {
-            appEl.style.maxWidth = 'none';
-            appEl.style.padding = '0';
-            appEl.style.margin = '0';
-        }
-        pp.style.width = '8.5in';
-        pp.style.maxWidth = '8.5in';
-        pp.style.padding = '0.5in';
-        pp.style.margin = '0';
-        pp.style.boxSizing = 'border-box';
-        pp.style.position = 'absolute';
-        pp.style.left = '0';
-        pp.style.top = '0';
-        pp.style.backgroundColor = '#ffffff';
+        const cloneImages = Array.from(clone.querySelectorAll('img'));
+        await Promise.all(cloneImages.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(resolve => {
+                const done = () => resolve();
+                img.addEventListener('load', done, { once: true });
+                img.addEventListener('error', done, { once: true });
+                setTimeout(done, 1500);
+            });
+        }));
 
         window.scrollTo(0, 0);
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 300));
 
         try {
             const blob = await window.html2pdf()
                 .set({
                     margin: 0,
                     filename: 'worksheet.pdf',
-                    image: { type: 'jpeg', quality: 0.95 },
+                    image: { type: 'jpeg', quality: 0.98 },
+                    pagebreak: { mode: ['css', 'legacy'] },
                     html2canvas: {
                         scale: 2,
                         useCORS: true,
                         backgroundColor: '#ffffff',
+                        scrollX: 0,
                         scrollY: 0,
-                        windowWidth: 816
+                        width: clone.scrollWidth,
+                        windowWidth: clone.scrollWidth,
+                        logging: false
                     },
                     jsPDF: {
                         unit: 'in',
                         format: 'letter',
-                        orientation: 'portrait'
+                        orientation: 'portrait',
+                        compress: true
                     }
                 })
-                .from(pp)
-                .output('blob');
+                .from(clone)
+                .outputPdf('blob');
 
             return blob;
         } finally {
-            // Restore original styles
-            pp.style.cssText = origPP;
-            if (appEl) appEl.style.cssText = origApp;
+            if (clone.parentNode) clone.parentNode.removeChild(clone);
             noPrintEls.forEach(el => el.style.display = '');
             showFormView();
         }
