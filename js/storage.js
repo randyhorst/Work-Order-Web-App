@@ -7,6 +7,35 @@
 
 const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year
 
+function isConfigKey(key) {
+    return key === 'shopAppFirebaseConfig' || key === 'shopAppSettings';
+}
+
+function hasUsableValue(value) {
+    return value !== undefined && value !== null && !(typeof value === 'string' && value.trim() === '');
+}
+
+function mergeStoredJson(primaryRaw, fallbackRaw) {
+    try {
+        const primary = JSON.parse(primaryRaw || '{}');
+        const fallback = JSON.parse(fallbackRaw || '{}');
+        const merged = { ...fallback, ...primary };
+        Object.keys(fallback).forEach(key => {
+            if (!hasUsableValue(merged[key]) && hasUsableValue(fallback[key])) {
+                merged[key] = fallback[key];
+            }
+        });
+        Object.keys(primary).forEach(key => {
+            if (hasUsableValue(primary[key])) {
+                merged[key] = primary[key];
+            }
+        });
+        return JSON.stringify(merged);
+    } catch {
+        return primaryRaw || fallbackRaw || null;
+    }
+}
+
 /**
  * Read a value. Tries localStorage first, then falls back to cookie.
  * If found in cookie but not localStorage, syncs it back to localStorage.
@@ -118,8 +147,18 @@ export async function getItemFromSWCache(key) {
  */
 export async function getItemAsync(key) {
     const sync = getItem(key);
-    if (sync) return sync;
-    return await getItemFromSWCache(key);
+    if (!isConfigKey(key)) {
+        if (sync) return sync;
+        return await getItemFromSWCache(key);
+    }
+
+    const cached = await getItemFromSWCache(key);
+    if (sync && cached) {
+        const merged = mergeStoredJson(sync, cached);
+        if (merged) setItem(key, merged);
+        return merged;
+    }
+    return cached || sync;
 }
 
 function escapeRegex(s) {

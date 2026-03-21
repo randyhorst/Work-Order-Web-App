@@ -27,6 +27,25 @@ let _tokenClient = null;
 let _gsiLoaded = false;
 let _tokenExpiresAt = 0;
 
+function hasUsableValue(value) {
+    return value !== undefined && value !== null && !(typeof value === 'string' && value.trim() === '');
+}
+
+function mergeSettings(primary, fallback) {
+    const merged = { ...(fallback || {}), ...(primary || {}) };
+    Object.keys(fallback || {}).forEach(key => {
+        if (!hasUsableValue(merged[key]) && hasUsableValue(fallback[key])) {
+            merged[key] = fallback[key];
+        }
+    });
+    Object.keys(primary || {}).forEach(key => {
+        if (hasUsableValue(primary[key])) {
+            merged[key] = primary[key];
+        }
+    });
+    return merged;
+}
+
 function getSettings() {
     try { return JSON.parse(getItem(SETTINGS_KEY) || '{}'); } catch { return {}; }
 }
@@ -36,7 +55,7 @@ async function getSettingsAsync() {
     try {
         const raw = await getItemAsync(SETTINGS_KEY);
         const asyncSettings = JSON.parse(raw || '{}');
-        return { ...asyncSettings, ...syncSettings };
+        return mergeSettings(syncSettings, asyncSettings);
     } catch {
         return syncSettings;
     }

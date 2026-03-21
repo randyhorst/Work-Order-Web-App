@@ -244,6 +244,11 @@
                 <div id="report-photo-container" class="mt-4"></div>
             </section>
 
+            <section id="report-doc-section" class="hidden mb-8">
+                <h2 class="text-sm font-bold uppercase text-black border-b border-gray-300 pb-1 mb-3">Attached Documents</h2>
+                <div id="report-doc-container" class="mt-4 space-y-2"></div>
+            </section>
+
             <footer class="mt-auto pt-6 border-t border-gray-300 text-center">
                 <p class="text-xs text-gray-400">Generated via Shop Work Order System</p>
             </footer>
@@ -437,9 +442,9 @@
 
     function renderSavedDoc(doc) {
         const list = document.getElementById('doc-list');
-        const icon = doc.contentType === 'application/pdf' ? '📄' : '🖼️';
-        const viewLink = doc.driveMeta?.webViewLink || doc.dataUrl || '';
-        const sizeText = doc.size ? `${(doc.size / 1024).toFixed(0)} KB` : '';
+        const icon = doc.contentType === 'application/pdf' ? '📄' : (doc.contentType?.startsWith('image/') ? '🖼️' : '📎');
+        const viewLink = getDocViewLink(doc);
+        const sizeText = getDocSizeText(doc);
         const row = document.createElement('div');
         row.className = 'flex items-center gap-3 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2';
         row.dataset.docId = doc.id;
@@ -450,6 +455,35 @@
             <button type="button" onclick="removeDoc('${doc.id}')" class="text-red-400 hover:text-red-300 font-bold text-lg px-1">×</button>
         `;
         list.appendChild(row);
+    }
+
+    function getDocViewLink(doc) {
+        return doc?.driveMeta?.webViewLink || doc?.driveMeta?.webContentLink || doc?.dataUrl || '';
+    }
+
+    function getDocTypeLabel(doc) {
+        const contentType = doc?.contentType || '';
+        if (contentType === 'application/pdf') return 'PDF';
+        if (contentType.startsWith('image/')) return `${contentType.replace('image/', '').toUpperCase()} image`;
+        const match = (doc?.name || '').match(/\.([^.]+)$/);
+        return match ? match[1].toUpperCase() : 'Document';
+    }
+
+    function getDocSizeText(doc) {
+        return doc?.size ? `${(doc.size / 1024).toFixed(0)} KB` : '';
+    }
+
+    function getSavedDocumentEntries() {
+        return savedDocs.map(doc => {
+            const normalized = buildDocState(doc);
+            return {
+                id: normalized.id,
+                name: normalized.name || 'Attachment',
+                typeLabel: getDocTypeLabel(normalized),
+                sizeText: getDocSizeText(normalized),
+                viewLink: getDocViewLink(normalized)
+            };
+        }).filter(doc => doc.name || doc.viewLink);
     }
 
     function restoreSavedAttachments(attachments = []) {
@@ -983,6 +1017,46 @@
             photoSources.forEach(src => { const i = document.createElement('img'); i.src = src; photoCont.appendChild(i); });
         } else { photoSection.classList.add('hidden'); }
 
+        const docEntries = getSavedDocumentEntries();
+        const docSection = document.getElementById('report-doc-section');
+        const docCont = document.getElementById('report-doc-container');
+        docCont.innerHTML = '';
+        if (docEntries.length > 0) {
+            docSection.classList.remove('hidden');
+            docEntries.forEach(doc => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border:1px solid #d1d5db;border-radius:6px;padding:10px 12px;margin-bottom:8px;';
+                const left = document.createElement('div');
+                left.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
+                const title = doc.viewLink ? document.createElement('a') : document.createElement('span');
+                if (doc.viewLink) {
+                    title.href = doc.viewLink;
+                    title.target = '_blank';
+                    title.style.cssText = 'color:#1d4ed8;text-decoration:underline;font-size:12px;font-weight:600;';
+                } else {
+                    title.style.cssText = 'color:#111827;font-size:12px;font-weight:600;';
+                }
+                title.textContent = doc.name;
+                const meta = document.createElement('span');
+                meta.style.cssText = 'color:#6b7280;font-size:11px;';
+                meta.textContent = [doc.typeLabel, doc.sizeText].filter(Boolean).join(' • ');
+                left.appendChild(title);
+                if (meta.textContent) left.appendChild(meta);
+                row.appendChild(left);
+                if (doc.viewLink) {
+                    const link = document.createElement('a');
+                    link.href = doc.viewLink;
+                    link.target = '_blank';
+                    link.textContent = 'Open';
+                    link.style.cssText = 'white-space:nowrap;color:#1d4ed8;text-decoration:underline;font-size:12px;font-weight:600;';
+                    row.appendChild(link);
+                }
+                docCont.appendChild(row);
+            });
+        } else {
+            docSection.classList.add('hidden');
+        }
+
         document.getElementById('form-view').classList.add('hidden');
         document.getElementById('print-preview').classList.remove('hidden');
     }
@@ -1077,6 +1151,15 @@
             }
         }
 
+        let docHTML = '';
+        const docSection = document.getElementById('report-doc-section');
+        if (docSection && !docSection.classList.contains('hidden')) {
+            const docs = document.getElementById('report-doc-container')?.innerHTML || '';
+            if (docs.trim()) {
+                docHTML = `<div style="margin-bottom:24px;"><h2 style="font-size:12px;font-weight:bold;text-transform:uppercase;border-bottom:1px solid #d1d5db;padding-bottom:4px;margin-bottom:12px;">Attached Documents</h2><div style="display:flex;flex-direction:column;gap:8px;">${docs}</div></div>`;
+            }
+        }
+
         // Use your exact working CSS from the original file
         return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Work Order ${woNum}</title>
 <style>
@@ -1130,7 +1213,7 @@ td { border-bottom: 1px solid #e5e7eb; padding: 4px; vertical-align: top; }
 </div>
 <div style="margin-bottom:24px;"><h2 class="section-title">What It Came In For</h2><div class="text-block">${cameIn}</div></div>
 <div style="margin-bottom:24px;"><h2 class="section-title">What Got Done</h2><div class="text-block">${gotDone}</div></div>
-${inspHTML}${photoHTML}
+${inspHTML}${photoHTML}${docHTML}
 <div style="margin-top:auto;padding-top:16px;border-top:1px solid #d1d5db;text-align:center;"><p style="font-size:10px;color:#9ca3af;">Generated via Shop Work Order System</p></div>
 </body></html>`;
     }
@@ -1258,6 +1341,7 @@ ${inspHTML}${photoHTML}
         const settings = JSON.parse(getItem('shopAppSettings') || '{}');
         const workOrderNumber = document.getElementById('wo-number-display').textContent || 'Draft';
         const photoSources = await getPdfPhotoSources();
+        const documentEntries = getSavedDocumentEntries();
         const images = {};
 
         if (settings.logoUrl) {
@@ -1366,6 +1450,53 @@ ${inspHTML}${photoHTML}
             }
         }
 
+        if (documentEntries.length) {
+            content.push({ text: 'Attached Documents', style: 'pdfSectionTitle', margin: [0, 0, 0, 8] });
+            content.push({
+                layout: {
+                    hLineWidth(index, node) {
+                        if (index === 0 || index === node.table.body.length) return 0;
+                        return 0.5;
+                    },
+                    vLineWidth() {
+                        return 0;
+                    },
+                    hLineColor() {
+                        return '#e5e7eb';
+                    },
+                    paddingLeft() {
+                        return 0;
+                    },
+                    paddingRight(index, node) {
+                        return index === node.table.widths.length - 1 ? 0 : 8;
+                    },
+                    paddingTop() {
+                        return 6;
+                    },
+                    paddingBottom() {
+                        return 6;
+                    }
+                },
+                table: {
+                    widths: ['*', 'auto'],
+                    body: documentEntries.map(doc => [
+                        {
+                            stack: [
+                                doc.viewLink
+                                    ? { text: doc.name, link: doc.viewLink, style: 'pdfDocNameLink' }
+                                    : { text: doc.name, style: 'pdfDocName' },
+                                { text: [doc.typeLabel, doc.sizeText].filter(Boolean).join(' • '), style: 'pdfDocMeta' }
+                            ]
+                        },
+                        doc.viewLink
+                            ? { text: 'Open', link: doc.viewLink, style: 'pdfDocLink', alignment: 'right' }
+                            : { text: '', style: 'pdfDocMeta' }
+                    ])
+                },
+                margin: [0, 0, 0, 18]
+            });
+        }
+
         const docDefinition = {
             pageSize: 'LETTER',
             pageMargins: [36, 36, 36, 40],
@@ -1397,7 +1528,11 @@ ${inspHTML}${photoHTML}
                 pdfTableHeader: { fontSize: 9, bold: true, color: '#111827' },
                 pdfTableSection: { fontSize: 9, bold: true, color: '#111827', fillColor: '#f3f4f6' },
                 pdfTableCheck: { fontSize: 12, bold: true, color: '#111827' },
-                pdfTableCell: { fontSize: 9.5, color: '#111827' }
+                pdfTableCell: { fontSize: 9.5, color: '#111827' },
+                pdfDocName: { fontSize: 10.5, bold: true, color: '#111827' },
+                pdfDocNameLink: { fontSize: 10.5, bold: true, color: '#1d4ed8', decoration: 'underline' },
+                pdfDocMeta: { fontSize: 9, color: '#6b7280', margin: [0, 2, 0, 0] },
+                pdfDocLink: { fontSize: 9.5, bold: true, color: '#1d4ed8', decoration: 'underline' }
             }
         };
 

@@ -14,6 +14,25 @@ import { getItem, setItem } from './storage.js';
 const APP_CONFIG_KEY = 'shopAppFirebaseConfig';
 const APP_SETTINGS_KEY = 'shopAppSettings';
 
+function hasOwn(obj, key) {
+    return !!obj && Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function pickStringFields(fields, keys) {
+    const picked = {};
+    keys.forEach(key => {
+        if (hasOwn(fields, key)) picked[key] = fields[key]?.stringValue || '';
+    });
+    return picked;
+}
+
+function hasBootstrappedSettings(settings) {
+    if (!settings) return false;
+    const hasCompanySettings = !!(settings.companyId && settings.companyName);
+    const hasDriveKeys = hasOwn(settings, 'googleClientId') && hasOwn(settings, 'driveFolderId') && hasOwn(settings, 'googleApiKey');
+    return hasCompanySettings && hasDriveKeys;
+}
+
 async function bootstrapConfigFromFirestore(projectId) {
     if (!projectId) return false;
     try {
@@ -22,23 +41,17 @@ async function bootstrapConfigFromFirestore(projectId) {
         if (!res.ok) return false;
         const data = await res.json();
         const f = data.fields || {};
-        const getString = key => f[key]?.stringValue || '';
+        const existingConfig = getStoredConfig() || {};
+        const existingSettings = getStoredSettings() || {};
         const config = {
-            apiKey: getString('apiKey'),
-            authDomain: getString('authDomain'),
-            projectId: getString('projectId') || projectId,
-            storageBucket: getString('storageBucket'),
-            messagingSenderId: getString('messagingSenderId'),
-            appId: getString('appId')
+            ...existingConfig,
+            ...pickStringFields(f, ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId']),
+            projectId: (hasOwn(f, 'projectId') ? (f.projectId?.stringValue || '') : '') || existingConfig.projectId || projectId
         };
         if (!config.apiKey || !config.projectId) return false;
         const appSettings = {
-            companyId: getString('companyId'),
-            companyName: getString('companyName'),
-            logoUrl: getString('logoUrl'),
-            driveFolderId: getString('driveFolderId'),
-            googleApiKey: getString('googleApiKey'),
-            googleClientId: getString('googleClientId')
+            ...existingSettings,
+            ...pickStringFields(f, ['companyId', 'companyName', 'logoUrl', 'driveFolderId', 'googleApiKey', 'googleClientId'])
         };
         setItem(APP_CONFIG_KEY, JSON.stringify(config));
         setItem(APP_SETTINGS_KEY, JSON.stringify(appSettings));
@@ -85,14 +98,14 @@ function getProjectIdCookie() {
 
 async function ensureAppSettingsBootstrap() {
     const currentSettings = getStoredSettings();
-    if (currentSettings?.companyId && (currentSettings.googleClientId || currentSettings.driveFolderId || currentSettings.companyName)) {
+    if (hasBootstrappedSettings(currentSettings)) {
         return true;
     }
 
     try {
         const { getItemFromSWCache } = await import('./storage.js');
         const raw = await getItemFromSWCache(APP_SETTINGS_KEY);
-        if (raw) return true;
+        if (raw && hasBootstrappedSettings(getStoredSettings())) return true;
     } catch(e) {
         console.log('[Firebase] App settings SW fallback failed:', e.message);
     }
