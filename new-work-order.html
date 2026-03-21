@@ -959,46 +959,42 @@ ${inspHTML}${photoHTML}
 
     async function generatePdfBlob() {
         const pp = document.getElementById('print-preview');
-        const savedStyle = pp.getAttribute('style') || '';
+        const noPrintEls = pp.querySelectorAll('.no-print');
+        let captureHost = null;
         try {
-            // generatePrintView() populates and shows #print-preview (white bg, black text, all data filled)
             generatePrintView();
-
-            // Hide non-data elements (buttons, nav) before capture
-            const noPrintEls = pp.querySelectorAll('.no-print');
             noPrintEls.forEach(el => el.style.display = 'none');
 
-            // Force letter-width, top-left position so html2canvas captures correctly
-            pp.style.cssText = 'position:fixed; left:0; top:0; width:8.5in; padding:0.5in; box-sizing:border-box; background:white; color:black; z-index:99999;';
+            captureHost = document.createElement('div');
+            captureHost.style.cssText = 'position:fixed;left:0;top:0;width:8.5in;margin:0;padding:0;background:#ffffff;z-index:99999;overflow:visible;';
+            const captureNode = pp.cloneNode(true);
+            captureNode.classList.remove('hidden');
+            captureNode.style.cssText = 'display:block;width:8.5in;min-height:auto;padding:0.5in;box-sizing:border-box;margin:0;background:#ffffff;color:#000000;';
+            captureNode.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
+            captureHost.appendChild(captureNode);
+            document.body.appendChild(captureHost);
 
-            // Scroll to top so html2canvas captures from the beginning
             window.scrollTo(0, 0);
-
-            // Let the browser finish painting
             await new Promise(r => setTimeout(r, 500));
 
-            // Capture the visible, fully-rendered print-preview div directly
             const blob = await window.html2pdf()
                 .set({
                     margin: 0,
                     filename: 'worksheet.pdf',
                     image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, windowWidth: pp.scrollWidth },
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, width: captureNode.scrollWidth, windowWidth: captureNode.scrollWidth },
                     jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
                 })
-                .from(pp)
+                .from(captureNode)
                 .output('blob');
 
             console.log('[PDF] blob size:', blob.size, 'bytes');
             if (blob.size < 5000) console.warn('[PDF] WARNING: blob is very small, may be blank');
 
-            // Restore hidden elements
-            noPrintEls.forEach(el => el.style.display = '');
-
             return blob;
         } finally {
-            // Always restore original styles and switch back to form view
-            pp.setAttribute('style', savedStyle);
+            captureHost?.remove();
+            noPrintEls.forEach(el => el.style.display = '');
             showFormView();
         }
     }
