@@ -958,43 +958,71 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        const pp = document.getElementById('print-preview');
-        const noPrintEls = pp.querySelectorAll('.no-print');
-        let captureHost = null;
+        let container = null;
         try {
+            // 1. Populate the UI with data so buildPrintHTML() can read it
             generatePrintView();
-            noPrintEls.forEach(el => el.style.display = 'none');
-
-            captureHost = document.createElement('div');
-            captureHost.style.cssText = 'position:fixed;left:0;top:0;width:8.5in;margin:0;padding:0;background:#ffffff;z-index:99999;overflow:visible;';
-            const captureNode = pp.cloneNode(true);
-            captureNode.classList.remove('hidden');
-            captureNode.style.cssText = 'display:block;width:8.5in;min-height:auto;padding:0.5in;box-sizing:border-box;margin:0;background:#ffffff;color:#000000;';
-            captureNode.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
-            captureHost.appendChild(captureNode);
-            document.body.appendChild(captureHost);
-
-            window.scrollTo(0, 0);
+            
+            // 2. Generate the exact same HTML string that the native print button uses
+            const htmlStr = buildPrintHTML();
+            
+            // 3. Parse it so we can extract the body and styles without the browser stripping them
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlStr, 'text/html');
+            
+            // 4. Create a dedicated, clean container for the PDF render
+            container = document.createElement('div');
+            // Use absolute positioning so it doesn't get clipped by the viewport height (which happens with fixed)
+            // Force it to exactly 8.5 inches wide, with the 0.5in padding defined in buildPrintHTML
+            container.style.cssText = 'position:absolute; left:0; top:0; width:8.5in; background-color:white; color:black; padding:0.5in; box-sizing:border-box; font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; font-size:12px; line-height:1.4; z-index:-9999;';
+            
+            // 5. Apply the print styles
+            doc.querySelectorAll('style').forEach(s => {
+                container.appendChild(document.importNode(s, true));
+            });
+            
+            // 6. Insert the clean print content
+            const contentDiv = document.createElement('div');
+            contentDiv.innerHTML = doc.body.innerHTML;
+            container.appendChild(contentDiv);
+            
+            document.body.appendChild(container);
+            
+            // 7. Ensure all images inside the new container are fully loaded before capturing
+            const imgs = Array.from(container.querySelectorAll('img'));
+            await Promise.all(imgs.map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise(resolve => {
+                    img.onload = resolve;
+                    img.onerror = resolve; // Continue even if an image fails
+                });
+            }));
+            
+            // Small delay to ensure browser layout is fully calculated
             await new Promise(r => setTimeout(r, 500));
-
+            
+            // 8. Capture the clean container to PDF
             const blob = await window.html2pdf()
                 .set({
                     margin: 0,
                     filename: 'worksheet.pdf',
                     image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, width: captureNode.scrollWidth, windowWidth: captureNode.scrollWidth },
+                    // 816px is exactly 8.5in at 96 DPI. scrollY: 0 ensures we capture from the top.
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, windowWidth: 816 },
                     jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
                 })
-                .from(captureNode)
+                .from(container)
                 .output('blob');
-
+                
             console.log('[PDF] blob size:', blob.size, 'bytes');
             if (blob.size < 5000) console.warn('[PDF] WARNING: blob is very small, may be blank');
 
             return blob;
         } finally {
-            captureHost?.remove();
-            noPrintEls.forEach(el => el.style.display = '');
+            // Clean up the temporary container and restore the UI
+            if (container && container.parentNode) {
+                container.parentNode.removeChild(container);
+            }
             showFormView();
         }
     }
