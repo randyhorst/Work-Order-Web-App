@@ -135,8 +135,11 @@
             </div>
             <div>
                 <label class="block text-xs text-gray-400 mb-1">Google Drive Folder ID</label>
-                <input type="text" id="cfg-driveFolderId" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="1aBcDeFgHiJkLmNoPqRsTuVwXyZ">
-                <p class="text-xs text-gray-500 mt-1">All photos and PDFs will be uploaded into this folder.</p>
+                <div class="flex gap-2">
+                    <input type="text" id="cfg-driveFolderId" class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="1aBcDeFgHiJkLmNoPqRsTuVwXyZ">
+                    <button type="button" id="btn-picker-drive-folder" onclick="pickDriveFolder()" class="shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition" title="Pick folder from Google Drive">📁 Pick</button>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">All photos and PDFs will be uploaded into this folder. Use Pick to select a folder from your Drive.</p>
             </div>
             <div>
                 <label class="block text-xs text-gray-400 mb-1">Google API Key <span class="text-gray-500">(optional — only needed if you use Google Picker)</span></label>
@@ -228,6 +231,13 @@
     // Load saved values on page load
     const savedCfg = JSON.parse(getItem(APP_CONFIG_KEY) || '{}');
     const savedSettings = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
+
+    // Update Drive status badge based on saved config
+    const driveBadge = document.getElementById('drive-status');
+    if (savedSettings.googleClientId) {
+        driveBadge.textContent = '✓ Configured';
+        driveBadge.className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
+    }
     document.querySelector('a[href="login.html"]')?.setAttribute('href', `login.html${bootstrapSearch}`);
 
     if (savedCfg.apiKey) {
@@ -396,17 +406,68 @@
         statusEl.textContent = '';
         try {
             const account = await forceReAuth();
-            infoEl.textContent = `✓ Connected as ${account.email}`;
+            infoEl.textContent = `✓ Connected as ${account.email || '(connected)'}`;
             infoEl.className = 'text-sm text-green-400 font-medium';
             if (topBtn) topBtn.textContent = '🔄 Switch Account';
             statusEl.textContent = '✓ Google Drive connected! Uploads will go to this account.';
             statusEl.className = 'text-sm h-5 mt-1 text-green-400';
+            // Update the Drive status badge to show configured
+            const driveBadge = document.getElementById('drive-status');
+            driveBadge.textContent = '✓ Configured';
+            driveBadge.className = 'text-xs px-3 py-1 rounded-full bg-green-900 text-green-300';
         } catch(e) {
             statusEl.textContent = 'Connection failed: ' + e.message;
             statusEl.className = 'text-sm h-5 mt-1 text-red-400';
             if (topBtn) topBtn.textContent = '🔗 Connect / Switch Google Account';
         } finally {
             if (topBtn) topBtn.disabled = false;
+        }
+    };
+
+    // Google Picker for folder selection
+    window.pickDriveFolder = async function() {
+        if (!requireAdminAction()) return;
+        const { googleClientId, googleApiKey } = JSON.parse(getItem(APP_SETTINGS_KEY) || '{}');
+        if (!googleClientId) {
+            alert('Please save your OAuth Client ID first, then use the folder picker.');
+            return;
+        }
+        if (!googleApiKey) {
+            alert('Please save your Google API Key first, then use the folder picker.');
+            return;
+        }
+        try {
+            // Load Google Picker API
+            if (!window.google || !window.google.picker) {
+                await new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = 'https://apis.google.com/js/api.js';
+                    s.onload = () => {
+                        gapi.load('picker', resolve);
+                    };
+                    s.onerror = reject;
+                    document.head.appendChild(s);
+                });
+            }
+            // Get OAuth token
+            const { getAccessToken } = await import('./js/drive-storage.js');
+            const token = await getAccessToken();
+            // Create picker
+            const picker = new google.picker.PickerBuilder()
+                .addView(google.picker.ViewId.FOLDERS)
+                .setOAuthToken(token)
+                .setDeveloperKey(googleApiKey)
+                .setCallback((data) => {
+                    if (data.action === google.picker.Action.PICKED) {
+                        const folder = data.docs[0];
+                        document.getElementById('cfg-driveFolderId').value = folder.id;
+                        showStatus('drive-save-status', `✓ Selected folder: ${folder.name}`, 'text-green-400');
+                    }
+                })
+                .build();
+            picker.setVisible(true);
+        } catch(e) {
+            alert('Folder picker failed: ' + e.message);
         }
     };
 
