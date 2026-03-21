@@ -196,7 +196,7 @@
     </div>
 
     <!-- PRINT PREVIEW VIEW -->
-    <div id="print-preview" class="hidden bg-white text-black p-8">
+    <div id="print-preview" class="hidden bg-white text-black" style="padding:0.5in;">
         <div class="flex flex-col h-full">
             <header id="print-header" class="border-b-2 border-black pb-4 mb-6">
                 <div class="flex justify-between items-start">
@@ -956,11 +956,11 @@ ${inspHTML}${photoHTML}
         // Capture the visible, fully-rendered print-preview div directly
         const blob = await window.html2pdf()
             .set({
-                margin: 0.3,
+                margin: 0,
                 filename: 'worksheet.pdf',
                 image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, windowWidth: pp.scrollWidth },
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, windowWidth: pp.scrollWidth, logging: false },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait', compress: true }
             })
             .from(pp)
             .output('blob');
