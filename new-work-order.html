@@ -958,87 +958,44 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        // First populate the print-preview with data
+        // Simple approach: populate print-preview and capture it directly
         generatePrintView();
+        const pp = document.getElementById('print-preview');
         
-        // Wait for the print-preview to be visible and rendered
-        await new Promise(resolve => {
-            const checkRender = () => {
-                const pp = document.getElementById('print-preview');
-                if (pp && !pp.classList.contains('hidden') && pp.offsetHeight > 0) {
-                    // Additional wait for content to fully render
-                    setTimeout(resolve, 300);
-                } else {
-                    setTimeout(checkRender, 50);
-                }
-            };
-            checkRender();
-        });
+        // Wait for content to populate
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Now build the HTML from the populated print-preview
-        const html = buildPrintHTML();
-        
-        // Extract just the body content and styles from the HTML
-        const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
-        const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/);
-        
-        if (!bodyMatch) {
-            throw new Error('Could not extract body content from HTML');
-        }
-        
-        const bodyContent = bodyMatch[1];
-        const styleContent = headMatch ? headMatch[1] : '';
-        
-        // Create a temporary div with the styles and body content
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'fixed';
-        tempDiv.style.left = '-9999px';
-        tempDiv.style.top = '0';
-        tempDiv.style.width = '8.5in';
-        tempDiv.style.height = '11in';
-        tempDiv.style.backgroundColor = '#ffffff';
-        tempDiv.style.overflow = 'hidden';
-        tempDiv.style.padding = '0';
-        tempDiv.style.margin = '0';
-        document.body.appendChild(tempDiv);
-        
-        // Add the styles to the div
-        tempDiv.innerHTML = `<style>${styleContent}</style>${bodyContent}`;
-        
-        // Wait for the temp content to render
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Hide non-print elements
+        const noPrintEls = pp.querySelectorAll('.no-print');
+        noPrintEls.forEach(el => el.style.display = 'none');
         
         try {
             const blob = await window.html2pdf()
                 .set({
-                    margin: 0,
+                    margin: 0.5,
                     filename: 'worksheet.pdf',
-                    image: { type: 'jpeg', quality: 0.98 },
+                    image: { type: 'jpeg', quality: 0.95 },
                     html2canvas: { 
-                        scale: 1, 
+                        scale: 2, 
                         useCORS: true, 
                         backgroundColor: '#ffffff', 
-                        logging: false,
-                        width: tempDiv.scrollWidth,
-                        height: tempDiv.scrollHeight
+                        logging: false
                     },
                     jsPDF: { 
                         unit: 'in', 
                         format: 'letter', 
                         orientation: 'portrait', 
-                        compress: false
+                        compress: true
                     }
                 })
-                .from(tempDiv)
+                .from(pp)
                 .output('blob');
             
             console.log('[PDF] blob size:', blob.size, 'bytes');
-            if (blob.size < 1000) {
-                console.warn('[PDF] WARNING: blob is very small, may be blank');
-            }
             return blob;
         } finally {
-            document.body.removeChild(tempDiv);
+            // Restore hidden elements
+            noPrintEls.forEach(el => el.style.display = '');
             showFormView();
         }
     }
