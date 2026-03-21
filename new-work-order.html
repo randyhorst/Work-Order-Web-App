@@ -14,7 +14,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
@@ -958,253 +957,43 @@ ${inspHTML}${photoHTML}
         return `${safeUnit} - ${baseName}${safeWo ? ' - ' + safeWo : ''}.pdf`;
     }
 
-    async function pdfImageDataFromSrc(src) {
-        return await new Promise(resolve => {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = function() {
-                try {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.naturalWidth || img.width;
-                    canvas.height = img.naturalHeight || img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    resolve(canvas.toDataURL('image/jpeg', 0.92));
-                } catch {
-                    resolve(null);
-                }
-            };
-            img.onerror = function() { resolve(null); };
-            img.src = src;
-        });
-    }
-
     async function generatePdfBlob() {
-        generatePrintView();
-        const { jsPDF } = window.jspdf || {};
-        if (!jsPDF) throw new Error('PDF library failed to load.');
-
-        const doc = new jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait', compress: true });
-        const pageWidth = 8.5;
-        const pageHeight = 11;
-        const margin = 0.5;
-        const contentWidth = pageWidth - (margin * 2);
-        const bottomLimit = pageHeight - margin;
-        let y = margin;
-
-        const ensureSpace = (needed = 0.24) => {
-            if (y + needed > bottomLimit) {
-                doc.addPage();
-                y = margin;
-            }
-        };
-
-        const textValue = id => document.getElementById(id)?.textContent?.trim() || '';
-        const addDivider = () => {
-            doc.setDrawColor(209, 213, 219);
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 0.16;
-        };
-        const addSection = (title, value) => {
-            const lines = doc.splitTextToSize(value || '—', contentWidth);
-            ensureSpace(0.32 + (lines.length * 0.18));
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(11);
-            doc.setTextColor(0, 0, 0);
-            doc.text(title, margin, y);
-            y += 0.06;
-            addDivider();
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10.5);
-            doc.text(lines, margin, y);
-            y += (lines.length * 0.18) + 0.12;
-        };
-
         try {
-            const woNum = textValue('report-wo-number');
-            const company = textValue('report-company-name');
-            const unit = textValue('report-unit');
-            const employee = textValue('report-employee');
-            const date = textValue('report-date');
-            const hours = textValue('report-hours');
-            const km = textValue('report-kilometers');
-            const priority = textValue('report-priority');
+            // generatePrintView() populates and shows #print-preview (white bg, black text, all data filled)
+            generatePrintView();
+            const pp = document.getElementById('print-preview');
 
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(22);
-            doc.setTextColor(0, 0, 0);
-            doc.text('Work Order', margin, y);
-            if (company) {
-                doc.setFontSize(11);
-                doc.text(company, pageWidth - margin, y, { align: 'right' });
-            }
-            y += 0.22;
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.setTextColor(107, 114, 128);
-            if (woNum) doc.text(woNum, margin, y);
-            y += 0.08;
-            doc.setDrawColor(0, 0, 0);
-            doc.setLineWidth(0.015);
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 0.28;
+            // Hide non-data elements (buttons, nav) before capture
+            const noPrintEls = pp.querySelectorAll('.no-print');
+            noPrintEls.forEach(el => el.style.display = 'none');
 
-            const columns = [margin, margin + 2.55, margin + 5.1];
-            const rows = [
-                [
-                    ['Unit # / Description', unit],
-                    ['Requested By', employee],
-                    ['Date', date]
-                ],
-                [
-                    ['Hours / Odometer', hours],
-                    ['Kilometers', km],
-                    ['Priority', priority]
-                ]
-            ];
+            // Scroll to top so html2canvas captures from the beginning
+            window.scrollTo(0, 0);
 
-            rows.forEach(row => {
-                ensureSpace(0.72);
-                row.forEach((cell, idx) => {
-                    const x = columns[idx];
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(8);
-                    doc.setTextColor(107, 114, 128);
-                    doc.text(cell[0], x, y);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(cell[0] === 'Unit # / Description' ? 15 : 11);
-                    doc.setTextColor(0, 0, 0);
-                    const valueLines = doc.splitTextToSize(cell[1] || '—', 2.25);
-                    doc.text(valueLines, x, y + 0.18);
-                });
-                y += 0.62;
-            });
+            // Let the browser finish painting
+            await new Promise(r => setTimeout(r, 500));
 
-            y += 0.06;
-            addSection('What It Came In For', textValue('report-came-in-for'));
-            addSection('What Got Done', textValue('report-got-done'));
+            // Capture the visible, fully-rendered print-preview div directly
+            const blob = await window.html2pdf()
+                .set({
+                    margin: 0.3,
+                    filename: 'worksheet.pdf',
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, windowWidth: pp.scrollWidth },
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                })
+                .from(pp)
+                .output('blob');
 
-            const inspectionSection = document.getElementById('report-inspection-section');
-            if (inspectionSection && !inspectionSection.classList.contains('hidden')) {
-                const title = textValue('report-inspection-title');
-                const tableRows = Array.from(document.querySelectorAll('#report-inspection-container tr'));
-                ensureSpace(0.4);
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(11);
-                doc.setTextColor(0, 0, 0);
-                doc.text('Maintenance Checklist', margin, y);
-                if (title) {
-                    doc.setFontSize(8);
-                    doc.setTextColor(107, 114, 128);
-                    doc.text(title, pageWidth - margin, y, { align: 'right' });
-                }
-                y += 0.06;
-                addDivider();
+            console.log('[PDF] blob size:', blob.size, 'bytes');
+            if (blob.size < 5000) console.warn('[PDF] WARNING: blob is very small, may be blank');
 
-                const colX = [margin, margin + 0.45, margin + 4.6];
-                const colW = [0.35, 4.0, 2.9];
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(8.5);
-                doc.setTextColor(0, 0, 0);
-                doc.text('OK', colX[0], y);
-                doc.text('Item', colX[1], y);
-                doc.text('Notes', colX[2], y);
-                y += 0.1;
-                doc.setDrawColor(0, 0, 0);
-                doc.line(margin, y, pageWidth - margin, y);
-                y += 0.12;
+            // Restore hidden elements
+            noPrintEls.forEach(el => el.style.display = '');
 
-                tableRows.forEach(row => {
-                    const cells = Array.from(row.querySelectorAll('td'));
-                    if (!cells.length) return;
-                    const isCategory = row.classList.contains('inspection-category-row') || cells.length === 1;
-                    if (isCategory) {
-                        ensureSpace(0.26);
-                        doc.setFillColor(243, 244, 246);
-                        doc.rect(margin, y - 0.12, contentWidth, 0.22, 'F');
-                        doc.setFont('helvetica', 'bold');
-                        doc.setFontSize(8.5);
-                        doc.setTextColor(0, 0, 0);
-                        doc.text((cells[0].textContent || '').trim(), margin + 0.04, y + 0.01);
-                        y += 0.26;
-                        return;
-                    }
-
-                    const okText = (cells[0].textContent || '').trim() || ' ';
-                    const itemLines = doc.splitTextToSize((cells[1].textContent || '').trim() || ' ', colW[1]);
-                    const noteLines = doc.splitTextToSize((cells[2].textContent || '').trim() || ' ', colW[2]);
-                    const rowLines = Math.max(itemLines.length, noteLines.length, 1);
-                    const rowHeight = (rowLines * 0.16) + 0.08;
-                    ensureSpace(rowHeight + 0.05);
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(8.5);
-                    doc.setTextColor(0, 0, 0);
-                    doc.text(okText, colX[0], y);
-                    doc.text(itemLines, colX[1], y);
-                    doc.text(noteLines, colX[2], y);
-                    y += rowHeight;
-                    doc.setDrawColor(229, 231, 235);
-                    doc.line(margin, y - 0.05, pageWidth - margin, y - 0.05);
-                });
-
-                y += 0.12;
-            }
-
-            const photoSection = document.getElementById('report-photo-section');
-            if (photoSection && !photoSection.classList.contains('hidden')) {
-                const images = Array.from(document.querySelectorAll('#report-photo-container img'));
-                if (images.length) {
-                    ensureSpace(0.36);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(11);
-                    doc.setTextColor(0, 0, 0);
-                    doc.text('Attached Photos', margin, y);
-                    y += 0.06;
-                    addDivider();
-
-                    const gap = 0.2;
-                    const photoWidth = (contentWidth - gap) / 2;
-                    let x = margin;
-                    let rowHeight = 0;
-                    for (let i = 0; i < images.length; i++) {
-                        const dataUrl = await pdfImageDataFromSrc(images[i].src);
-                        if (!dataUrl) continue;
-                        const img = images[i];
-                        const aspect = (img.naturalWidth || img.width || 1) / (img.naturalHeight || img.height || 1);
-                        let renderWidth = photoWidth;
-                        let renderHeight = renderWidth / aspect;
-                        if (renderHeight > 2.4) {
-                            renderHeight = 2.4;
-                            renderWidth = renderHeight * aspect;
-                        }
-                        if (x === margin) {
-                            ensureSpace(renderHeight + 0.2);
-                        }
-                        doc.addImage(dataUrl, 'JPEG', x, y, renderWidth, renderHeight);
-                        rowHeight = Math.max(rowHeight, renderHeight);
-                        if (x === margin) {
-                            x = margin + photoWidth + gap;
-                        } else {
-                            x = margin;
-                            y += rowHeight + 0.16;
-                            rowHeight = 0;
-                        }
-                    }
-                    if (x !== margin) y += rowHeight + 0.16;
-                }
-            }
-
-            ensureSpace(0.3);
-            doc.setDrawColor(209, 213, 219);
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 0.16;
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8);
-            doc.setTextColor(156, 163, 175);
-            doc.text('Generated via Shop Work Order System', pageWidth / 2, y, { align: 'center' });
-
-            return doc.output('blob');
+            return blob;
         } finally {
+            // Always switch back to form view, even if PDF generation fails
             showFormView();
         }
     }
