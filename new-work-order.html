@@ -958,11 +958,22 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        // Use the corrected buildPrintHTML() with your perfect CSS
+        // Use the corrected buildPrintHTML() but extract only the body content
         generatePrintView();
         const html = buildPrintHTML();
         
-        // Create a temporary div to hold the HTML
+        // Extract just the body content and styles from the HTML
+        const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/);
+        const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/);
+        
+        if (!bodyMatch) {
+            throw new Error('Could not extract body content from HTML');
+        }
+        
+        const bodyContent = bodyMatch[1];
+        const styleContent = headMatch ? headMatch[1] : '';
+        
+        // Create a temporary div with the styles and body content
         const tempDiv = document.createElement('div');
         tempDiv.style.position = 'fixed';
         tempDiv.style.left = '-9999px';
@@ -971,9 +982,12 @@ ${inspHTML}${photoHTML}
         tempDiv.style.height = '11in';
         tempDiv.style.backgroundColor = '#ffffff';
         tempDiv.style.overflow = 'hidden';
+        tempDiv.style.padding = '0';
+        tempDiv.style.margin = '0';
         document.body.appendChild(tempDiv);
         
-        tempDiv.innerHTML = html;
+        // Add the styles to the div
+        tempDiv.innerHTML = `<style>${styleContent}</style>${bodyContent}`;
         
         try {
             const blob = await window.html2pdf()
@@ -1000,6 +1014,9 @@ ${inspHTML}${photoHTML}
                 .output('blob');
             
             console.log('[PDF] blob size:', blob.size, 'bytes');
+            if (blob.size < 1000) {
+                console.warn('[PDF] WARNING: blob is very small, may be blank');
+            }
             return blob;
         } finally {
             document.body.removeChild(tempDiv);
