@@ -940,38 +940,41 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
-        // generatePrintView() populates and shows #print-preview (white bg, black text, all data filled)
-        generatePrintView();
-        const pp = document.getElementById('print-preview');
-
-        // Hide non-data elements (buttons, nav) before capture
-        const noPrintEls = pp.querySelectorAll('.no-print');
-        noPrintEls.forEach(el => el.style.display = 'none');
-
-        // Scroll to top so html2canvas captures from the beginning
-        window.scrollTo(0, 0);
-        // Let the browser finish painting
-        await new Promise(r => setTimeout(r, 500));
-
-        // Capture the visible, fully-rendered print-preview div directly
-        const blob = await window.html2pdf()
-            .set({
-                margin: 0,
-                filename: 'worksheet.pdf',
-                image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, windowWidth: pp.scrollWidth, logging: false },
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait', compress: true }
-            })
-            .from(pp)
-            .output('blob');
-
-        console.log('[PDF] blob size:', blob.size, 'bytes');
-        if (blob.size < 5000) console.warn('[PDF] WARNING: blob is very small, may be blank');
-
-        // Restore hidden elements and switch back to form view
-        noPrintEls.forEach(el => el.style.display = '');
-        showFormView();
-        return blob;
+        // Use the original buildPrintHTML() approach for perfect formatting
+        generatePrintView(); // This populates all the report-* elements
+        const html = buildPrintHTML();
+        
+        // Use html2pdf but with the properly formatted HTML from buildPrintHTML()
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        tempDiv.style.position = 'fixed';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.top = '0';
+        tempDiv.style.backgroundColor = '#ffffff';
+        tempDiv.style.width = '8.5in';
+        tempDiv.style.padding = '0';
+        document.body.appendChild(tempDiv);
+        
+        try {
+            const blob = await window.html2pdf()
+                .set({
+                    margin: 0,
+                    filename: 'worksheet.pdf',
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait', compress: true }
+                })
+                .from(tempDiv)
+                .output('blob');
+            
+            console.log('[PDF] blob size:', blob.size, 'bytes');
+            if (blob.size < 5000) console.warn('[PDF] WARNING: blob is very small, may be blank');
+            
+            return blob;
+        } finally {
+            document.body.removeChild(tempDiv);
+            showFormView();
+        }
     }
 
     async function generateAndUploadCompletionPdf(workOrderNumber) {
