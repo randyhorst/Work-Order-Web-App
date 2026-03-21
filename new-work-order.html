@@ -958,40 +958,50 @@ ${inspHTML}${photoHTML}
     }
 
     async function generatePdfBlob() {
+        // Use your original buildPrintHTML() approach
         generatePrintView();
+        const html = buildPrintHTML();
         
-        // Wait a moment for content to render
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Create a temporary element with the HTML
+        const tempEl = document.createElement('div');
+        tempEl.style.position = 'fixed';
+        tempEl.style.left = '-9999px';
+        tempEl.style.top = '0';
+        tempEl.style.width = '8.5in';
+        tempEl.style.height = '11in';
+        tempEl.style.backgroundColor = 'white';
+        tempEl.style.overflow = 'hidden';
+        document.body.appendChild(tempEl);
         
-        const pp = document.getElementById('print-preview');
+        tempEl.innerHTML = html;
         
-        // Make sure print preview is visible and has content
-        if (pp.classList.contains('hidden')) {
-            pp.classList.remove('hidden');
+        try {
+            const blob = await window.html2pdf()
+                .set({
+                    margin: 0,
+                    filename: 'worksheet.pdf',
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: { 
+                        scale: 1, 
+                        useCORS: true, 
+                        backgroundColor: '#ffffff',
+                        width: tempEl.scrollWidth,
+                        height: tempEl.scrollHeight
+                    },
+                    jsPDF: { 
+                        unit: 'in', 
+                        format: 'letter', 
+                        orientation: 'portrait'
+                    }
+                })
+                .from(tempEl)
+                .output('blob');
+            
+            showFormView();
+            return blob;
+        } finally {
+            document.body.removeChild(tempEl);
         }
-        
-        // Simple direct capture
-        const blob = await window.html2pdf()
-            .set({
-                margin: 0.5,
-                filename: 'worksheet.pdf',
-                image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: { 
-                    scale: 2, 
-                    useCORS: true, 
-                    backgroundColor: '#ffffff'
-                },
-                jsPDF: { 
-                    unit: 'in', 
-                    format: 'letter', 
-                    orientation: 'portrait'
-                }
-            })
-            .from(pp)
-            .output('blob');
-        
-        showFormView();
-        return blob;
     }
 
     async function generateAndUploadCompletionPdf(workOrderNumber) {
